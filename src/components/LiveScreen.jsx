@@ -12,7 +12,7 @@ export default function LiveScreen({ currentTrack, isPaused, onClose }) {
 
   useEffect(() => {
     if (!prev) return
-    const t = setTimeout(() => setPrev(null), 1400)
+    const t = setTimeout(() => setPrev(null), 500)
     return () => clearTimeout(t)
   }, [prev?.uri])
 
@@ -63,25 +63,25 @@ export default function LiveScreen({ currentTrack, isPaused, onClose }) {
       <div className="relative z-10 flex flex-col items-center gap-8 px-10 text-center max-w-lg w-full">
         {shown ? (
           <>
-            {/* Album art — overflow-hidden clips the slide so art stays inside the frame */}
-            <div className="relative w-72 h-72 sm:w-80 sm:h-80 rounded-2xl overflow-hidden"
-                 style={{ boxShadow: '0 32px 80px rgba(0,0,0,0.7)' }}>
-              {/* Prev art sliding out to left */}
+            {/* Album art stage — overflow-hidden clips the slide to the frame */}
+            <div
+              className="relative w-72 h-72 sm:w-80 sm:h-80 rounded-2xl overflow-hidden"
+              style={{ boxShadow: '0 32px 80px rgba(0,0,0,0.7)' }}
+            >
+              {/* Outgoing: wrapper slides left, image is static inside */}
               {prev && prevArtUrl && (
-                <img
-                  key={prev.uri + '-art'}
-                  src={prevArtUrl}
-                  alt=""
-                  className="absolute inset-0 w-full h-full object-cover live-art-out"
-                />
+                <div key={prev.uri + '-wrap'} className="absolute inset-0 live-art-out">
+                  <img src={prevArtUrl} alt="" className="w-full h-full object-cover" />
+                </div>
               )}
-              {/* Current art sliding in from right, pulses while playing */}
-              <img
-                key={shown.uri + '-art'}
-                src={artUrl}
-                alt=""
-                className={`absolute inset-0 w-full h-full object-cover live-art-in ${!isPaused ? 'live-playing' : ''}`}
-              />
+              {/* Incoming: wrapper slides from right; image pulses ONLY after slide ends */}
+              <div key={shown.uri + '-wrap'} className="absolute inset-0 live-art-in">
+                <img
+                  src={artUrl}
+                  alt=""
+                  className={`w-full h-full object-cover ${!isPaused && !prev ? 'live-playing' : ''}`}
+                />
+              </div>
             </div>
 
             {/* Track info */}
