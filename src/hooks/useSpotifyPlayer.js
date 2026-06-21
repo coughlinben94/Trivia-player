@@ -123,7 +123,8 @@ export function useSpotifyPlayer({ onAdvance } = {}) {
     const gen = genRef.current
     clearInterval(monitorRef.current)
 
-    player.setVolume(0)
+    // Await the volume-zero so Spotify can't start audibly before the seek
+    await player.setVolume(0)
     setIsPaused(false)
 
     const token = await getToken()
@@ -151,19 +152,41 @@ export function useSpotifyPlayer({ onAdvance } = {}) {
     if (genRef.current !== gen) return
 
     if (startMs > 0) {
-      await player.seek(startMs)
-      // Wait up to 1.5s for position to land near startMs
-      await new Promise(resolve => {
-        const deadline = setTimeout(resolve, 1500)
+      // Give Spotify 400ms to buffer the start of the track before seeking
+      await sleep(400)
+      if (genRef.current !== gen) return
+
+      const doSeek = async () => {
+        // Hit both the SDK and REST API — REST is more reliable
+        player.seek(startMs)
+        const t = await getToken()
+        await fetch(
+          `https://api.spotify.com/v1/me/player/seek?position_ms=${startMs}&device_id=${deviceId}`,
+          { method: 'PUT', headers: { Authorization: `Bearer ${t}` } }
+        )
+      }
+
+      await doSeek()
+
+      // Poll until position lands within 1.5s of target.
+      // Never exit early on null state — only on confirmed position match.
+      const landed = await new Promise(resolve => {
+        const deadline = setTimeout(() => resolve(false), 3000)
         const poll = setInterval(async () => {
           const s = await player.getCurrentState()
-          if (!s || Math.abs(s.position - startMs) < 1000) {
+          if (s && Math.abs(s.position - startMs) < 1500) {
             clearInterval(poll)
             clearTimeout(deadline)
-            resolve()
+            resolve(true)
           }
         }, 100)
       })
+
+      // If first seek timed out, try once more
+      if (!landed && genRef.current === gen) {
+        await doSeek()
+        await sleep(800)
+      }
     } else {
       await sleep(200)
     }
