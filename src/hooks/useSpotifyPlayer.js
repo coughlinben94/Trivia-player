@@ -94,6 +94,18 @@ export function useSpotifyPlayer() {
 
   const togglePlay = useCallback(() => playerRef.current?.togglePlay(), [])
 
+  // Spacebar toggles play/pause for Stream Deck
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.code === 'Space' && e.target === document.body) {
+        e.preventDefault()
+        playerRef.current?.togglePlay()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
   const seek = useCallback((ms) => {
     setPosition(ms)
     playerRef.current?.seek(ms)
