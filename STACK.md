@@ -1,0 +1,31 @@
+# trivia-jukebox
+
+## GitHub
+https://github.com/coughlinben94/Trivia-player
+
+## Deploy
+Vercel project: `trivia-jukebox` (prj_911MyE9898eV7OsvWX0uWrKnSnU3)
+
+## npm packages
+
+### dependencies
+| Package | Version |
+|---|---|
+| framer-motion | ^12.40.0 |
+| react | ^19.2.6 |
+| react-dom | ^19.2.6 |
+
+### devDependencies
+| Package | Version |
+|---|---|
+| @eslint/js | ^10.0.1 |
+| @tailwindcss/vite | ^4.3.1 |
+| @types/react | ^19.2.14 |
+| @types/react-dom | ^19.2.3 |
+| @vitejs/plugin-react | ^6.0.1 |
+| eslint | ^10.3.0 |
+| eslint-plugin-react-hooks | ^7.1.1 |
+| eslint-plugin-react-refresh | ^0.5.2 |
+| globals | ^17.6.0 |
+| tailwindcss | ^4.3.1 |
+| vite | ^8.0.12 |

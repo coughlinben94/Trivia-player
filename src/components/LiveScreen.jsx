@@ -1,14 +1,27 @@
-import { useState, useEffect } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
+import { useState, useEffect, useRef } from 'react'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+
+const REEL_CARDS = 10
 
 export default function LiveScreen({ currentTrack, isPaused, onClose }) {
-  const [shown, setShown] = useState(currentTrack)
-  const [prev, setPrev] = useState(null)
+  const shouldReduceMotion = useReducedMotion()
+  const [shown, setShown]       = useState(currentTrack)
+  const [prev, setPrev]         = useState(null)
+  const [isSpinning, setIsSpinning] = useState(false)
+  const [spinKey, setSpinKey]   = useState(0)
+  const spinTimerRef = useRef(null)
 
   useEffect(() => {
     if (!currentTrack || currentTrack.uri === shown?.uri) return
     setPrev(shown)
     setShown(currentTrack)
+    // Trigger reel on every transition (not on first mount)
+    if (shown) {
+      setIsSpinning(true)
+      setSpinKey(k => k + 1)
+      clearTimeout(spinTimerRef.current)
+      spinTimerRef.current = setTimeout(() => setIsSpinning(false), 500)
+    }
   }, [currentTrack?.uri])
 
   useEffect(() => {
@@ -17,21 +30,22 @@ export default function LiveScreen({ currentTrack, isPaused, onClose }) {
     return () => clearTimeout(t)
   }, [prev?.uri])
 
+  useEffect(() => () => clearTimeout(spinTimerRef.current), [])
+
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose() }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
 
-  const bgUrl = shown?.album?.images?.[0]?.url
+  const bgUrl    = shown?.album?.images?.[0]?.url
   const prevBgUrl = prev?.album?.images?.[0]?.url
-  const artUrl = shown?.album?.images?.[0]?.url
-  const prevArtUrl = prev?.album?.images?.[0]?.url
+  const artUrl   = shown?.album?.images?.[0]?.url
 
   return (
     <div className="fixed inset-0 bg-black z-50 overflow-hidden flex flex-col items-center justify-center">
 
-      {/* Blurred background — old color exits fast (0.4s) so it's gone before art lands */}
+      {/* Blurred background — old color exits fast */}
       {prevBgUrl && (
         <div
           key={prev.uri + '-bg'}
@@ -44,7 +58,7 @@ export default function LiveScreen({ currentTrack, isPaused, onClose }) {
         />
       )}
 
-      {/* Blurred background — new color washes in slowly (1.6s), settles after art */}
+      {/* Blurred background — new color washes in slowly */}
       {bgUrl && (
         <div
           key={(shown?.uri ?? 'empty') + '-bg'}
@@ -57,7 +71,7 @@ export default function LiveScreen({ currentTrack, isPaused, onClose }) {
         />
       )}
 
-      {/* Dark vignette overlay */}
+      {/* Dark vignette */}
       <div className="absolute inset-0 bg-black/30" />
 
       {/* Content */}
@@ -65,38 +79,70 @@ export default function LiveScreen({ currentTrack, isPaused, onClose }) {
         {shown ? (
           <>
             {/*
-              * Pulse lives on the container (scale + shadow together).
-              * Slides live on inner wrappers — pulse and slide never share an element.
-              * Container has overflow-hidden to clip the 32px slide offset.
-              * When prev is null (first song or Live Screen just opened), skip the
-              * directional slide and use a plain fade so nothing shoots in from nowhere.
-              */}
-            {/*
-              * Page flip: exit card rotates Y 0→90° (snaps away, ease-in),
-              * then enter card rotates Y -90→0° (snaps into place, ease-out).
-              * AnimatePresence mode="wait" sequences them — exit first, then enter.
-              * initial={false} skips the flip on first mount (first song just appears).
-              * Pulse on the container; flip on the inner motion.div — no shared transform.
-              */}
+             * Jukebox reel effect:
+             *   1. Old art exits fast (scale+fade, 100ms)
+             *   2. 10 blank white cards cascade upward over the container (staggered, 300ms total)
+             *   3. New art springs forward from scale 0.88 after 280ms delay — pops out of the reel
+             *
+             * Reel cards are siblings of the art (same overflow-hidden container) so they're
+             * clipped to the rounded frame. Pulse on the outer container; spring on the art card.
+             * No shared transform conflict.
+             */}
             <div
-              className={`relative w-72 h-72 sm:w-80 sm:h-80 rounded-2xl overflow-hidden ${!isPaused && !prev ? 'live-playing' : ''}`}
-              style={{ perspective: '1200px', boxShadow: '0 32px 80px rgba(0,0,0,0.7)' }}
+              className={`relative w-72 h-72 sm:w-80 sm:h-80 rounded-2xl overflow-hidden ${!isPaused && !isSpinning && !prev ? 'live-playing' : ''}`}
+              style={{ boxShadow: '0 32px 80px rgba(0,0,0,0.7)' }}
             >
+              {/* Art card: exits fast, enters with spring pop after reel */}
               <AnimatePresence mode="wait" initial={false}>
                 <motion.div
                   key={shown.uri}
                   className="absolute inset-0"
-                  initial={{ rotateY: -90 }}
-                  animate={{ rotateY: 0, transition: { duration: 0.16, ease: [0, 0, 0.55, 1] } }}
-                  exit={{ rotateY: 90, transition: { duration: 0.16, ease: [0.45, 0, 1, 1] } }}
-                  style={{ backfaceVisibility: 'hidden' }}
+                  // Emil: never scale below 0.90 on entry; spring for natural pop
+                  initial={{ scale: 0.92, opacity: 0 }}
+                  animate={{
+                    scale: 1,
+                    opacity: 1,
+                    transition: shouldReduceMotion
+                      ? { duration: 0.2 }
+                      : {
+                          scale:   { type: 'spring', stiffness: 380, damping: 28, delay: 0.28 },
+                          opacity: { duration: 0.04, delay: 0.28 },
+                        },
+                  }}
+                  exit={{
+                    scale: 0.96,
+                    opacity: 0,
+                    // Emil: ease-out on exit (starts immediately, never ease-in which looks sluggish)
+                    transition: { duration: 0.08, ease: [0.23, 1, 0.32, 1] },
+                  }}
                 >
                   <img src={artUrl} alt="" className="w-full h-full object-cover" />
                 </motion.div>
               </AnimatePresence>
+
+              {/* Reel: blank white cards scroll upward, clipped by container overflow-hidden.
+                  Skipped entirely for prefers-reduced-motion. */}
+              <AnimatePresence>
+                {isSpinning && !shouldReduceMotion && Array.from({ length: REEL_CARDS }, (_, i) => (
+                  <motion.div
+                    key={`${spinKey}-${i}`}
+                    className="absolute inset-x-0 bg-white"
+                    style={{ height: '100%', top: 0, zIndex: 20 }}
+                    initial={{ y: '105%' }}
+                    animate={{ y: '-105%' }}
+                    exit={{}}
+                    transition={{
+                      delay:    i * 0.026,
+                      duration: 0.14,
+                      // Emil: explicit cubic-bezier over built-in 'linear' string
+                      ease:     [0, 0, 1, 1],
+                    }}
+                  />
+                ))}
+              </AnimatePresence>
             </div>
 
-            {/* Track info */}
+            {/* Track info — slides up after reel clears */}
             <div key={shown.uri + '-text'} className="live-text-in">
               <h1 className="text-3xl sm:text-4xl font-bold text-white tracking-tight leading-tight mb-2">
                 {shown.name}

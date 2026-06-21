@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Flip Test</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #1a1a1a; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 24px; font-family: system-ui; color: white; }
+.stage { position: relative; width: 288px; height: 288px; border-radius: 16px; overflow: hidden; perspective: 1200px; box-shadow: 0 32px 80px rgba(0,0,0,0.7); }
+.card { position: absolute; inset: 0; backface-visibility: hidden; }
+.card img { width: 100%; height: 100%; object-fit: cover; }
+button { background: #1DB954; color: black; border: none; padding: 10px 24px; border-radius: 9999px; font-weight: 700; cursor: pointer; font-size: 14px; }
+#label { font-size: 13px; opacity: 0.5; }
+</style>
+</head>
+<body>
+<p id="label">Press Flip to test</p>
+<div class="stage" id="stage">
+  <div class="card" id="card">
+    <img src="https://picsum.photos/seed/track1/288/288" alt="">
+  </div>
+</div>
+<button onclick="flip()">Flip to Next Song</button>
+<script>
+const imgs = [
+  'https://picsum.photos/seed/track1/288/288',
+  'https://picsum.photos/seed/track2/288/288',
+  'https://picsum.photos/seed/track3/288/288',
+  'https://picsum.photos/seed/track4/288/288',
+]
+let idx = 0
+
+function flip() {
+  const stage = document.getElementById('stage')
+  const current = stage.querySelector('.card')
+  idx = (idx + 1) % imgs.length
+  document.getElementById('label').textContent = `Flipping to track ${idx + 1}...`
+
+  // Exit: 0 → 90deg (ease-in, 160ms)
+  current.animate(
+    [{ transform: 'rotateY(0deg)' }, { transform: 'rotateY(90deg)' }],
+    { duration: 160, easing: 'cubic-bezier(0.45, 0, 1, 1)', fill: 'forwards' }
+  ).onfinish = () => {
+    current.remove()
+    // Enter: -90 → 0deg (ease-out, 160ms)
+    const next = document.createElement('div')
+    next.className = 'card'
+    next.innerHTML = `<img src="${imgs[idx]}" alt="">`
+    stage.appendChild(next)
+    next.animate(
+      [{ transform: 'rotateY(-90deg)' }, { transform: 'rotateY(0deg)' }],
+      { duration: 160, easing: 'cubic-bezier(0, 0, 0.55, 1)', fill: 'forwards' }
+    ).onfinish = () => {
+      next.style.transform = 'rotateY(0deg)'
+      document.getElementById('label').textContent = `Track ${idx + 1} — done`
+    }
+  }
+}
+</script>
+</body>
+</html>
