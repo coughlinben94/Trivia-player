@@ -55,6 +55,40 @@ function TimeField({ label, value, maxMs, onChange }) {
   )
 }
 
+function SetMarkerButton({ label, position, onClick }) {
+  const [flash, setFlash] = useState(false)
+
+  const handleClick = () => {
+    onClick()
+    setFlash(true)
+    setTimeout(() => setFlash(false), 600)
+  }
+
+  return (
+    <button
+      onClick={handleClick}
+      style={{ transition: 'transform 160ms cubic-bezier(0.23,1,0.32,1), background 160ms cubic-bezier(0.23,1,0.32,1)' }}
+      className={`py-3 rounded-xl flex flex-col items-center gap-0.5 cursor-pointer
+        ${flash
+          ? 'bg-[#1DB954]/20 scale-[0.97]'
+          : 'bg-white/[0.05] hover:bg-white/[0.09]'
+        }`}
+    >
+      <span
+        className="text-[10px] font-bold uppercase tracking-wider"
+        style={{ transition: 'color 160ms cubic-bezier(0.23,1,0.32,1)' }}
+      >
+        {flash ? (
+          <span className="text-[#1DB954]">✓ Set</span>
+        ) : (
+          <span className="text-white/70">{label}</span>
+        )}
+      </span>
+      <span className="text-[10px] text-white/30 tabular-nums">{fmt(position)}</span>
+    </button>
+  )
+}
+
 export default function SongDetailModal({ track, player, onUpdateTimes, onClose }) {
   const { position, duration, seek, playTrack, fadeAndPause, currentTrack, isPaused } = player
 
@@ -71,17 +105,18 @@ export default function SongDetailModal({ track, player, onUpdateTimes, onClose 
   const img = track.album?.images?.[0]
   const artists = track.artists?.map(a => a.name).join(', ')
 
-  const pct     = displayDuration > 0 ? (displayPosition / displayDuration) * 100 : 0
-  const inPct   = displayDuration > 0 ? (startMs / displayDuration) * 100 : 0
-  const outPct  = displayDuration > 0 ? (stopMs  / displayDuration) * 100 : 0
+  const pct    = displayDuration > 0 ? (displayPosition / displayDuration) * 100 : 0
+  const inPct  = displayDuration > 0 ? (startMs / displayDuration) * 100 : 0
+  const outPct = displayDuration > 0 ? (stopMs  / displayDuration) * 100 : 0
 
   const handleScrub = (ms) => {
     if (isActive) seek(ms)
     else setLocalPos(ms)
   }
 
-  const handlePlay = () => playTrack(track.uri, displayPosition, 0)
-  const handleStop = () => fadeAndPause()
+  // Always play from the In point to the Out point
+  const handlePlay  = () => playTrack(track.uri, startMs, stopMs)
+  const handleStop  = () => fadeAndPause()
   const handleSetIn  = () => setStartMs(displayPosition)
   const handleSetOut = () => setStopMs(displayPosition)
 
@@ -144,7 +179,6 @@ export default function SongDetailModal({ track, player, onUpdateTimes, onClose 
 
           {/* Scrubber */}
           <div className="mb-1.5 relative">
-            {/* In/out green range behind thumb */}
             <div
               className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-[3px] rounded-full pointer-events-none"
               style={{
@@ -174,17 +208,12 @@ export default function SongDetailModal({ track, player, onUpdateTimes, onClose 
 
           {/* Set In / Play / Set Out */}
           <div className="grid grid-cols-3 gap-2 mb-4">
-            <button
-              onClick={handleSetIn}
-              className="py-3 rounded-xl bg-white/[0.05] hover:bg-white/[0.09] text-white/70 hover:text-white transition-all duration-150 cursor-pointer active:scale-[0.97] flex flex-col items-center gap-0.5"
-            >
-              <span className="text-[10px] font-bold uppercase tracking-wider">Set In</span>
-              <span className="text-[10px] text-white/30 tabular-nums">{fmt(displayPosition)}</span>
-            </button>
+            <SetMarkerButton label="Set In" position={displayPosition} onClick={handleSetIn} />
 
             <button
               onClick={isPlaying ? handleStop : handlePlay}
-              className={`py-3 rounded-xl font-semibold transition-all duration-150 cursor-pointer active:scale-[0.97] text-sm ${
+              style={{ transition: 'transform 160ms cubic-bezier(0.23,1,0.32,1)' }}
+              className={`py-3 rounded-xl font-semibold text-sm cursor-pointer active:scale-[0.97] ${
                 isPlaying
                   ? 'bg-white/10 text-white'
                   : 'bg-white text-black hover:bg-white/90'
@@ -193,35 +222,20 @@ export default function SongDetailModal({ track, player, onUpdateTimes, onClose 
               {isPlaying ? '⏸' : '▶'}
             </button>
 
-            <button
-              onClick={handleSetOut}
-              className="py-3 rounded-xl bg-white/[0.05] hover:bg-white/[0.09] text-white/70 hover:text-white transition-all duration-150 cursor-pointer active:scale-[0.97] flex flex-col items-center gap-0.5"
-            >
-              <span className="text-[10px] font-bold uppercase tracking-wider">Set Out</span>
-              <span className="text-[10px] text-white/30 tabular-nums">{fmt(displayPosition)}</span>
-            </button>
+            <SetMarkerButton label="Set Out" position={displayPosition} onClick={handleSetOut} />
           </div>
 
           {/* Editable In/Out times */}
           <div className="flex items-center justify-between px-1 mb-5">
-            <TimeField
-              label="In"
-              value={startMs}
-              maxMs={stopMs}
-              onChange={setStartMs}
-            />
+            <TimeField label="In" value={startMs} maxMs={stopMs} onChange={setStartMs} />
             <div className="flex-1 mx-4 h-[1px] bg-[#1DB954]/20" />
-            <TimeField
-              label="Out"
-              value={stopMs}
-              maxMs={displayDuration}
-              onChange={setStopMs}
-            />
+            <TimeField label="Out" value={stopMs} maxMs={displayDuration} onChange={setStopMs} />
           </div>
 
           <button
             onClick={handleSave}
-            className="w-full py-3 bg-[#1DB954] text-black text-sm font-bold rounded-xl hover:bg-[#1ed760] active:scale-[0.97] transition-all duration-150 cursor-pointer"
+            style={{ transition: 'transform 160ms cubic-bezier(0.23,1,0.32,1)' }}
+            className="w-full py-3 bg-[#1DB954] text-black text-sm font-bold rounded-xl hover:bg-[#1ed760] active:scale-[0.97] cursor-pointer"
           >
             Save & Close
           </button>

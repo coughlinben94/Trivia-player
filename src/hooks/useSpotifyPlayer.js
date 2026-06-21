@@ -151,7 +151,20 @@ export function useSpotifyPlayer({ onAdvance } = {}) {
 
     if (startMs > 0) {
       await player.seek(startMs)
-      await sleep(300)
+      // Wait up to 1.5s for position to land near startMs
+      await new Promise(resolve => {
+        const deadline = setTimeout(resolve, 1500)
+        const poll = setInterval(async () => {
+          const s = await player.getCurrentState()
+          if (!s || Math.abs(s.position - startMs) < 1000) {
+            clearInterval(poll)
+            clearTimeout(deadline)
+            resolve()
+          }
+        }, 100)
+      })
+    } else {
+      await sleep(200)
     }
 
     if (genRef.current !== gen) return
