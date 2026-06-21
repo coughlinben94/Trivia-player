@@ -456,7 +456,7 @@ export default function Jukebox({ onLogout }) {
                             : <div className="w-full h-full flex items-center justify-center text-2xl">🎵</div>
                           }
                         </div>
-                        <div className="p-2.5">
+                        <div className="p-2.5 text-center">
                           <p className="text-xs font-medium text-white truncate">{pl.name}</p>
                           <p className="text-[10px] text-white/30 mt-0.5">{pl.tracks?.total} songs</p>
                         </div>
@@ -663,7 +663,7 @@ function LibraryCard({ track, isPlaying, isPaused, onRemove, onClick, onDragStar
           className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-black/70 text-white/50 hover:text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-150 cursor-pointer text-[10px]"
         >✕</button>
       </div>
-      <div className="p-2 bg-white/[0.03]">
+      <div className="p-2 bg-white/[0.03] text-center">
         <p className={`text-[11px] font-semibold truncate ${isPlaying ? 'text-[#1DB954]' : 'text-white'}`}>{track.name}</p>
         <p className="text-[10px] text-white/25 truncate mt-0.5">{artists}</p>
       </div>
