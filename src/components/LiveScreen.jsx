@@ -90,19 +90,19 @@ export default function LiveScreen({ currentTrack, isPaused, onClose }) {
               <h1 className="text-3xl sm:text-4xl font-bold text-white tracking-tight leading-tight mb-2">
                 {shown.name}
               </h1>
-              <p className="text-lg text-white/50 font-medium">
+              <p className="text-lg text-white font-medium">
                 {shown.artists?.map(a => a.name).join(', ')}
               </p>
             </div>
           </>
         ) : (
-          <p className="text-white/25 text-base">Waiting for music…</p>
+          <p className="text-white text-base">Waiting for music…</p>
         )}
       </div>
 
       {/* Paused pill */}
       {isPaused && shown && (
-        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 text-xs text-white/30 tracking-widest uppercase">
+        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 text-xs text-white tracking-widest uppercase">
           Paused
         </div>
       )}
@@ -110,7 +110,7 @@ export default function LiveScreen({ currentTrack, isPaused, onClose }) {
       {/* Exit */}
       <button
         onClick={onClose}
-        className="absolute top-6 right-6 text-white/20 hover:text-white/60 transition-colors duration-150 cursor-pointer text-lg leading-none"
+        className="absolute top-6 right-6 text-white hover:text-white transition-colors duration-150 cursor-pointer text-lg leading-none"
         aria-label="Close live screen"
       >
         ✕

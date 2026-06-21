@@ -90,7 +90,8 @@ export function useSpotifyPlayer({ onAdvance } = {}) {
   }
 
   // ─── Position monitor ────────────────────────────────────────────
-  const startMonitor = useCallback((stopMs, gen) => {
+  // preview=true: fade+pause at stopMs but do NOT advance to the next song
+  const startMonitor = useCallback((stopMs, gen, preview = false) => {
     clearInterval(monitorRef.current)
     monitorRef.current = setInterval(async () => {
       if (genRef.current !== gen) { clearInterval(monitorRef.current); return }
@@ -107,13 +108,13 @@ export function useSpotifyPlayer({ onAdvance } = {}) {
         if (genRef.current !== gen) return
         await playerRef.current?.pause()
         playerRef.current?.setVolume(0)
-        onAdvanceRef.current?.()
+        if (!preview) onAdvanceRef.current?.()
       }
     }, 300)
   }, [])
 
   // ─── Play a track with custom start/stop ─────────────────────────
-  const playTrack = useCallback(async (uri, startMs = 0, stopMs = 0) => {
+  const playTrack = useCallback(async (uri, startMs = 0, stopMs = 0, preview = false) => {
     const player = playerRef.current
     const deviceId = deviceIdRef.current
     if (!player || !deviceId) return
@@ -174,7 +175,7 @@ export function useSpotifyPlayer({ onAdvance } = {}) {
 
     if (genRef.current !== gen) return
 
-    startMonitor(stopMs > startMs ? stopMs : 0, gen)
+    startMonitor(stopMs > startMs ? stopMs : 0, gen, preview)
   }, [startMonitor])
 
   // ─── Fade out and pause ──────────────────────────────────────────

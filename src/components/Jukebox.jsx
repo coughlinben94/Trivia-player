@@ -216,23 +216,23 @@ export default function Jukebox({ onLogout }) {
   const setOrder = Object.keys(sets.items)
 
   return (
-    <div className="h-screen bg-[#1c1c1e] text-white flex flex-col overflow-hidden">
+    <div className="h-screen bg-[#272729] text-white flex flex-col overflow-hidden">
       {/* Header */}
-      <header className="sticky top-0 z-10 border-b border-white/[0.05] bg-[#1c1c1e]/90 backdrop-blur-md px-6 py-4 flex items-center justify-between flex-shrink-0">
+      <header className="sticky top-0 z-10 border-b border-white/[0.05] bg-[#272729]/90 backdrop-blur-md px-6 py-4 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-2.5">
           <span className="text-lg">🎵</span>
-          <span className="text-sm font-semibold text-white/90 tracking-tight">Trivia Jukebox</span>
+          <span className="text-sm font-semibold text-white tracking-tight">Trivia Jukebox</span>
         </div>
         <div className="flex items-center gap-3">
           {player.error && <span className="text-xs text-red-400/70">{player.error}</span>}
           {!player.isReady && !player.error && (
-            <span className="text-[11px] text-white/20">Connecting…</span>
+            <span className="text-[11px] text-white">Connecting…</span>
           )}
           {isPlaying && (
             <button
               onClick={() => setShowLive(v => !v)}
               className={`text-xs font-medium transition-all duration-150 cursor-pointer px-3 py-1 rounded-full active:scale-[0.97] ${
-                showLive ? 'bg-white text-black' : 'text-white/50 hover:text-white border border-white/10 hover:border-white/25'
+                showLive ? 'bg-white text-black' : 'text-white hover:text-white border border-white/10 hover:border-white/25'
               }`}
             >
               Live
@@ -240,7 +240,7 @@ export default function Jukebox({ onLogout }) {
           )}
           <button
             onClick={() => { logout(); onLogout() }}
-            className="text-[11px] text-white/25 hover:text-white/50 transition-colors duration-150 cursor-pointer"
+            className="text-[11px] text-white hover:text-white transition-colors duration-150 cursor-pointer"
           >
             Disconnect
           </button>
@@ -251,8 +251,8 @@ export default function Jukebox({ onLogout }) {
       <div className="flex flex-1 overflow-hidden">
 
         {/* Left sidebar — trivia themes */}
-        <aside className="w-44 flex-shrink-0 border-r border-white/[0.05] bg-[#161618] flex flex-col py-4 overflow-y-auto">
-          <p className="text-[9px] font-bold uppercase tracking-widest text-white/20 px-4 mb-2">Trivia Themes</p>
+        <aside className="w-44 flex-shrink-0 border-r border-white/[0.05] bg-[#212123] flex flex-col py-4 overflow-y-auto">
+          <p className="text-[9px] font-bold uppercase tracking-widest text-white px-4 mb-2">Trivia Themes</p>
 
           {/* Add new theme — at top */}
           <div className="px-2 mb-3">
@@ -333,10 +333,10 @@ export default function Jukebox({ onLogout }) {
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center h-full text-center select-none pb-16">
-                <p className="text-white/[0.12] text-sm">
+                <p className="text-white text-sm">
                   {sets.activeId === 'main' ? 'Your library is empty' : `${activeSetName} is empty`}
                 </p>
-                <p className="text-white/[0.07] text-xs mt-1">Search on the right to add songs</p>
+                <p className="text-white text-xs mt-1">Search on the right to add songs</p>
               </div>
             )}
           </div>
@@ -347,7 +347,7 @@ export default function Jukebox({ onLogout }) {
           {/* Search input */}
           <div className="p-3 border-b border-white/[0.05] flex-shrink-0">
             <div className="relative">
-              <div className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-white/25">
+              <div className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-white">
                 <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
                   <path d="M7 12A5 5 0 1 0 7 2a5 5 0 0 0 0 10ZM14 14l-3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
                 </svg>
@@ -382,11 +382,11 @@ export default function Jukebox({ onLogout }) {
                 ))}
               </div>
             ) : searching ? null : !query ? (
-              <div className="flex items-center justify-center h-full text-white/[0.08] text-xs pb-16">
+              <div className="flex items-center justify-center h-full text-white text-xs pb-16">
                 Type to search Spotify
               </div>
             ) : (
-              <div className="flex items-center justify-center h-full text-white/[0.12] text-xs pb-16">
+              <div className="flex items-center justify-center h-full text-white text-xs pb-16">
                 No results found
               </div>
             )}
@@ -428,7 +428,7 @@ export default function Jukebox({ onLogout }) {
 function SetItem({ id, set, isActive, isRenaming, renamingVal, onSelect, onDelete, onClear, onStartRename, onRenameChange, onRenameCommit, onRenameCancel }) {
   return (
     <div className={`group flex items-center rounded-lg px-2 py-1.5 transition-all duration-150 ${
-      isActive ? 'bg-white/[0.08] text-white' : 'text-white/40 hover:text-white/70 hover:bg-white/[0.04]'
+      isActive ? 'bg-white/[0.08] text-white' : 'text-white hover:text-white hover:bg-white/[0.04]'
     }`}>
       {isRenaming ? (
         <input
@@ -451,7 +451,7 @@ function SetItem({ id, set, isActive, isRenaming, renamingVal, onSelect, onDelet
         >
           {set.name}
           {set.songs?.length > 0 && (
-            <span className="ml-1.5 text-[9px] text-white/25">{set.songs.length}</span>
+            <span className="ml-1.5 text-[9px] text-white">{set.songs.length}</span>
           )}
         </button>
       )}
@@ -461,7 +461,7 @@ function SetItem({ id, set, isActive, isRenaming, renamingVal, onSelect, onDelet
             <button
               onClick={e => { e.stopPropagation(); onClear() }}
               title="Clear all songs"
-              className="text-white/20 hover:text-red-400/80 transition-colors cursor-pointer p-0.5"
+              className="text-white hover:text-red-400/80 transition-colors cursor-pointer p-0.5"
             >
               <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
@@ -472,7 +472,7 @@ function SetItem({ id, set, isActive, isRenaming, renamingVal, onSelect, onDelet
             <button
               onClick={e => { e.stopPropagation(); onDelete() }}
               title="Delete theme"
-              className="text-white/20 hover:text-red-400/80 transition-colors cursor-pointer text-[10px] p-0.5"
+              className="text-white hover:text-red-400/80 transition-colors cursor-pointer text-[10px] p-0.5"
             >✕</button>
           )}
         </div>
@@ -495,7 +495,7 @@ function TrackRow({ track, index, inLibrary, onAdd }) {
       }
       <div className="flex-1 min-w-0">
         <p className="text-xs font-medium text-white truncate">{track.name}</p>
-        <p className="text-[10px] text-white/30 truncate mt-0.5">{artists}</p>
+        <p className="text-[10px] text-white truncate mt-0.5">{artists}</p>
       </div>
       <button
         onClick={() => onAdd(track)}
@@ -544,7 +544,7 @@ function LibraryCard({ track, isPlaying, isPaused, onRemove, onClick, onDragStar
         )}
         {isPaused && (
           <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-            <span className="text-white/60 text-sm">⏸</span>
+            <span className="text-white text-sm">⏸</span>
           </div>
         )}
         {hasTrim && !isPlaying && !isPaused && (
@@ -552,12 +552,12 @@ function LibraryCard({ track, isPlaying, isPaused, onRemove, onClick, onDragStar
         )}
         <button
           onClick={e => { e.stopPropagation(); onRemove() }}
-          className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-black/70 text-white/50 hover:text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-150 cursor-pointer text-[10px]"
+          className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-black/70 text-white hover:text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-150 cursor-pointer text-[10px]"
         >✕</button>
       </div>
       <div className="p-2 bg-white/[0.03] text-center">
         <p className={`text-[11px] font-semibold truncate ${isPlaying ? 'text-[#1DB954]' : 'text-white'}`}>{track.name}</p>
-        <p className="text-[10px] text-white/25 truncate mt-0.5">{artists}</p>
+        <p className="text-[10px] text-white truncate mt-0.5">{artists}</p>
       </div>
     </div>
   )

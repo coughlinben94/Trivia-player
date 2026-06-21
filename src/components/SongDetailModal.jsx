@@ -31,7 +31,7 @@ function TimeField({ label, value, maxMs, onChange }) {
 
   return (
     <div className="flex flex-col items-center gap-1">
-      <span className="text-[9px] font-bold uppercase tracking-widest text-white/25">{label}</span>
+      <span className="text-[9px] font-bold uppercase tracking-widest text-white">{label}</span>
       {editing ? (
         <input
           ref={ref}
@@ -63,7 +63,6 @@ function SetMarkerButton({ label, position, savedMs, onClick }) {
     setWasJustSet(true)
   }
 
-  // Clear the "just set" state once the scrubber moves away from the saved point
   useEffect(() => {
     if (wasJustSet && Math.abs(position - savedMs) > 500) {
       setWasJustSet(false)
@@ -88,7 +87,7 @@ function SetMarkerButton({ label, position, savedMs, onClick }) {
       >
         {isConfirmed
           ? <span className="text-[#1DB954]">✓ {label}</span>
-          : <span className="text-white/70">{label}</span>
+          : <span className="text-white">{label}</span>
         }
       </span>
       <span className="text-[10px] tabular-nums" style={{ transition: 'color 200ms', color: isConfirmed ? 'rgba(29,185,84,0.6)' : 'rgba(255,255,255,0.3)' }}>
@@ -104,52 +103,80 @@ export default function SongDetailModal({ track, player, onUpdateTimes, onClose 
   const isActive = currentTrack?.uri === track.uri
   const isPlaying = isActive && !isPaused
 
-  const displayDuration = isActive && duration > 0 ? duration : track.duration_ms
+  const displayDuration = isActive && duration > 0 ? duration : (track.duration_ms || 0)
   const [localPos, setLocalPos] = useState(track.startMs ?? 0)
   const displayPosition = isActive ? position : localPos
 
   const [startMs, setStartMs] = useState(track.startMs ?? 0)
-  const [stopMs, setStopMs] = useState(track.stopMs ?? track.duration_ms)
+  const [stopMs, setStopMs]   = useState(track.stopMs  ?? track.duration_ms ?? 0)
 
-  const img = track.album?.images?.[0]
+  // Keep refs so handleClose always has current values even inside closures
+  const startMsRef = useRef(startMs)
+  const stopMsRef  = useRef(stopMs)
+  useEffect(() => { startMsRef.current = startMs }, [startMs])
+  useEffect(() => { stopMsRef.current  = stopMs  }, [stopMs])
+
+  const img     = track.album?.images?.[0]
   const artists = track.artists?.map(a => a.name).join(', ')
 
   const pct    = displayDuration > 0 ? (displayPosition / displayDuration) * 100 : 0
-  const inPct  = displayDuration > 0 ? (startMs / displayDuration) * 100 : 0
-  const outPct = displayDuration > 0 ? (stopMs  / displayDuration) * 100 : 0
+  const inPct  = displayDuration > 0 ? (startMs          / displayDuration) * 100 : 0
+  const outPct = displayDuration > 0 ? (stopMs           / displayDuration) * 100 : 0
 
   const handleScrub = (ms) => {
     if (isActive) seek(ms)
     else setLocalPos(ms)
   }
 
-  // Always play from the In point to the Out point
-  const handlePlay  = () => playTrack(track.uri, startMs, stopMs)
-  const handleStop  = () => fadeAndPause()
-  const handleSetIn  = () => setStartMs(displayPosition)
-  const handleSetOut = () => setStopMs(displayPosition)
+  // Preview: plays from In to Out, does NOT auto-advance to next song
+  const handlePlay = () => playTrack(track.uri, startMs, stopMs, true)
+  const handleStop = () => fadeAndPause()
 
-  const handleSave = () => {
-    onUpdateTimes(track.id, startMs, stopMs)
+  // Set In/Out: capture current scrubber position AND immediately save to library
+  const handleSetIn = () => {
+    const ms = displayPosition
+    setStartMs(ms)
+    startMsRef.current = ms
+    onUpdateTimes(track.id, ms, stopMsRef.current)
+  }
+  const handleSetOut = () => {
+    const ms = displayPosition
+    setStopMs(ms)
+    stopMsRef.current = ms
+    onUpdateTimes(track.id, startMsRef.current, ms)
+  }
+
+  // Reset: clear clip and immediately save
+  const handleReset = () => {
+    const dur = track.duration_ms ?? 0
+    setStartMs(0)
+    setStopMs(dur)
+    setLocalPos(0)
+    startMsRef.current = 0
+    stopMsRef.current  = dur
+    onUpdateTimes(track.id, 0, dur)
+  }
+
+  // Close: always save current times (catches TimeField edits), then stop preview if active
+  const handleClose = () => {
+    onUpdateTimes(track.id, startMsRef.current, stopMsRef.current)
     if (isPlaying) fadeAndPause()
     onClose()
   }
 
   useEffect(() => {
-    const h = (e) => {
-      if (e.key === 'Escape') { if (isPlaying) fadeAndPause(); onClose() }
-    }
+    const h = (e) => { if (e.key === 'Escape') handleClose() }
     window.addEventListener('keydown', h)
     return () => window.removeEventListener('keydown', h)
-  }, [isPlaying])
+  }, [])  // stable via refs
 
   return (
     <div
       className="fixed inset-0 z-40 flex items-end sm:items-center justify-center p-0 sm:p-6 bg-black/75 backdrop-blur-sm"
-      onClick={() => { if (isPlaying) fadeAndPause(); onClose() }}
+      onClick={handleClose}
     >
       <div
-        className="bg-[#242426] border border-white/[0.07] rounded-t-3xl sm:rounded-3xl w-full max-w-md shadow-2xl animate-fade-up overflow-hidden"
+        className="bg-[#303032] border border-white/[0.07] rounded-t-3xl sm:rounded-3xl w-full max-w-md shadow-2xl animate-fade-up overflow-hidden"
         onClick={e => e.stopPropagation()}
       >
         {/* Album art strip */}
@@ -170,8 +197,8 @@ export default function SongDetailModal({ track, player, onUpdateTimes, onClose 
             />
           )}
           <button
-            onClick={() => { if (isPlaying) fadeAndPause(); onClose() }}
-            className="absolute top-3 right-3 w-7 h-7 rounded-full bg-black/60 text-white/50 hover:text-white flex items-center justify-center transition-colors duration-150 cursor-pointer"
+            onClick={handleClose}
+            className="absolute top-3 right-3 w-7 h-7 rounded-full bg-black/60 text-white hover:text-white flex items-center justify-center transition-colors duration-150 cursor-pointer"
           >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
               <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
@@ -183,10 +210,10 @@ export default function SongDetailModal({ track, player, onUpdateTimes, onClose 
           {/* Track info */}
           <div className="mb-4 text-center">
             <p className="text-base font-semibold text-white leading-tight truncate">{track.name}</p>
-            <p className="text-xs text-white/40 mt-1 truncate">{artists}</p>
+            <p className="text-xs text-white mt-1 truncate">{artists}</p>
           </div>
 
-          {/* Scrubber */}
+          {/* Scrubber with green clip range */}
           <div className="mb-1.5 relative">
             <div
               className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-[3px] rounded-full pointer-events-none"
@@ -211,13 +238,13 @@ export default function SongDetailModal({ track, player, onUpdateTimes, onClose 
             />
           </div>
           <div className="flex justify-between mb-4">
-            <span className="text-[10px] text-white/25 tabular-nums">{fmt(displayPosition)}</span>
-            <span className="text-[10px] text-white/25 tabular-nums">{fmt(displayDuration)}</span>
+            <span className="text-[10px] text-white tabular-nums">{fmt(displayPosition)}</span>
+            <span className="text-[10px] text-white tabular-nums">{fmt(displayDuration)}</span>
           </div>
 
           {/* Set In / Play / Set Out */}
           <div className="grid grid-cols-3 gap-2 mb-4">
-            <SetMarkerButton label="Set In" position={displayPosition} savedMs={startMs} onClick={handleSetIn} />
+            <SetMarkerButton label="Set In"  position={displayPosition} savedMs={startMs} onClick={handleSetIn}  />
 
             <button
               onClick={isPlaying ? handleStop : handlePlay}
@@ -231,22 +258,30 @@ export default function SongDetailModal({ track, player, onUpdateTimes, onClose 
               {isPlaying ? '⏸' : '▶'}
             </button>
 
-            <SetMarkerButton label="Set Out" position={displayPosition} savedMs={stopMs} onClick={handleSetOut} />
+            <SetMarkerButton label="Set Out" position={displayPosition} savedMs={stopMs}  onClick={handleSetOut} />
           </div>
 
-          {/* Editable In/Out times */}
+          {/* Typed In/Out fields + reset */}
           <div className="flex items-center justify-between px-1 mb-5">
-            <TimeField label="In" value={startMs} maxMs={stopMs} onChange={setStartMs} />
-            <div className="flex-1 mx-4 h-[1px] bg-[#1DB954]/20" />
-            <TimeField label="Out" value={stopMs} maxMs={displayDuration} onChange={setStopMs} />
+            <TimeField label="In"  value={startMs} maxMs={stopMs}          onChange={v => { setStartMs(v); startMsRef.current = v }} />
+            <div className="flex flex-col items-center gap-1">
+              <div className="w-24 h-[1px] bg-[#1DB954]/20" />
+              <button
+                onClick={handleReset}
+                className="text-[10px] text-white hover:text-white cursor-pointer transition-colors duration-150"
+              >
+                ↺ reset
+              </button>
+            </div>
+            <TimeField label="Out" value={stopMs}  maxMs={displayDuration} onChange={v => { setStopMs(v);  stopMsRef.current  = v }} />
           </div>
 
           <button
-            onClick={handleSave}
+            onClick={handleClose}
             style={{ transition: 'transform 160ms cubic-bezier(0.23,1,0.32,1)' }}
             className="w-full py-3 bg-[#1DB954] text-black text-sm font-bold rounded-xl hover:bg-[#1ed760] active:scale-[0.97] cursor-pointer"
           >
-            Save & Close
+            Done
           </button>
         </div>
       </div>

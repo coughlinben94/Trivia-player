@@ -34,7 +34,7 @@ export default function App() {
         <div className="text-center space-y-2">
           <div className="text-5xl mb-4">🎵</div>
           <h1 className="text-2xl font-semibold tracking-tight">Trivia Jukebox</h1>
-          <p className="text-sm text-white/35">Your personal music trivia queue</p>
+          <p className="text-sm text-white">Your personal music trivia queue</p>
         </div>
         <button
           onClick={login}
