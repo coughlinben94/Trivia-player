@@ -280,7 +280,7 @@ export default function Jukebox({ onLogout }) {
       <div className="flex flex-1 overflow-hidden">
         {/* Left sidebar — sets */}
         <aside className="w-44 flex-shrink-0 border-r border-white/[0.05] bg-[#0d0d0d] flex flex-col py-4 overflow-y-auto">
-          <p className="text-[9px] font-bold uppercase tracking-widest text-white/20 px-4 mb-3">Nights</p>
+          <p className="text-[9px] font-bold uppercase tracking-widest text-white/20 px-4 mb-3">Trivia Themes</p>
           <div className="flex-1 space-y-0.5 px-2">
             {setOrder.map(id => (
               <SetItem
@@ -464,7 +464,7 @@ export default function Jukebox({ onLogout }) {
             )}
 
             {/* Library */}
-            {library.length > 0 && (
+            {library.length > 0 && tab === 'search' && (
               <div className="animate-fade-up">
                 <div className="flex items-center justify-between mb-4">
                   <span className="text-[11px] font-semibold text-white/30 uppercase tracking-widest">
