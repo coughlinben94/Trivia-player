@@ -104,6 +104,27 @@ export function logout() {
   localStorage.removeItem('spotify_token_expiry')
 }
 
+export async function getPlaylists() {
+  const token = await getToken()
+  if (!token) return []
+  const res = await fetch('https://api.spotify.com/v1/me/playlists?limit=50', {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  const data = await res.json()
+  return data.items ?? []
+}
+
+export async function getPlaylistTracks(playlistId) {
+  const token = await getToken()
+  if (!token) return []
+  const res = await fetch(
+    `https://api.spotify.com/v1/playlists/${playlistId}/tracks?limit=100&fields=items(track(id,name,uri,duration_ms,artists,album))`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  )
+  const data = await res.json()
+  return (data.items ?? []).map(i => i.track).filter(Boolean)
+}
+
 export async function searchTracks(query) {
   const token = await getToken()
   if (!token) return []

@@ -17,6 +17,8 @@ export function useSpotifyPlayer({ onAdvance } = {}) {
   const deviceIdRef = useRef(null)
   const genRef = useRef(0)            // abort stale fades when new song starts
   const monitorRef = useRef(null)     // position monitor interval
+  const seekingRef = useRef(false)    // suppress monitor updates while scrubbing
+  const seekTimerRef = useRef(null)
   const onAdvanceRef = useRef(onAdvance)
 
   useEffect(() => { onAdvanceRef.current = onAdvance }, [onAdvance])
@@ -90,6 +92,7 @@ export function useSpotifyPlayer({ onAdvance } = {}) {
       if (genRef.current !== gen) { clearInterval(monitorRef.current); return }
       const state = await playerRef.current?.getCurrentState()
       if (!state || state.paused) return
+      if (seekingRef.current) return
       const pos = state.position
       setPosition(pos)
 
@@ -174,8 +177,12 @@ export function useSpotifyPlayer({ onAdvance } = {}) {
 
   // ─── Manual scrub ────────────────────────────────────────────────
   const seek = useCallback((ms) => {
+    seekingRef.current = true
+    clearTimeout(seekTimerRef.current)
     setPosition(ms)
     playerRef.current?.seek(ms)
+    // Resume monitor after Spotify catches up
+    seekTimerRef.current = setTimeout(() => { seekingRef.current = false }, 700)
   }, [])
 
   return {
