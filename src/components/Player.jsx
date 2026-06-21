@@ -3,25 +3,14 @@ function fmt(ms) {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 }
 
-export default function Player({ player, isPlaying, onPlay, onStop, onSkip, library, playingId, onUpdateTimes }) {
-  const { currentTrack, position, duration, seek } = player
+export default function Player({ player, isPlaying, onPlay, onStop, onSkip, library }) {
+  const { currentTrack, position, duration, seek, volume, setVolume } = player
 
   if (library.length === 0) return null
 
   const art = currentTrack?.album?.images?.[1] ?? currentTrack?.album?.images?.[0]
   const progress = duration > 0 ? (position / duration) * 100 : 0
-
-  const setIn = () => {
-    if (!playingId) return
-    const song = library.find(t => t.id === playingId)
-    if (song) onUpdateTimes(playingId, position, song.stopMs)
-  }
-
-  const setOut = () => {
-    if (!playingId) return
-    const song = library.find(t => t.id === playingId)
-    if (song) onUpdateTimes(playingId, song.startMs, position)
-  }
+  const volPct = (volume ?? 0.8) * 100
 
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-[#111]/95 backdrop-blur-xl border-t border-white/[0.06] z-20">
@@ -43,7 +32,7 @@ export default function Player({ player, isPlaying, onPlay, onStop, onSkip, libr
       </div>
 
       {/* Controls */}
-      <div className="flex items-center gap-4 px-5 pb-6 pt-1.5">
+      <div className="flex items-center gap-3 px-5 pb-6 pt-1.5">
         {/* Track info */}
         <div className="flex items-center gap-3 flex-1 min-w-0">
           {art
@@ -92,26 +81,23 @@ export default function Player({ player, isPlaying, onPlay, onStop, onSkip, libr
           </button>
         </div>
 
-        {/* Right: Set In / Set Out */}
-        <div className="flex-1 flex justify-end gap-2">
-          {isPlaying && (
-            <>
-              <button
-                onClick={setIn}
-                className="text-[10px] font-medium text-white/30 hover:text-white/60 transition-colors duration-150 cursor-pointer px-2 py-1 rounded-lg hover:bg-white/[0.05] active:scale-[0.95]"
-                title="Set start point to current position"
-              >
-                Set In
-              </button>
-              <button
-                onClick={setOut}
-                className="text-[10px] font-medium text-white/30 hover:text-white/60 transition-colors duration-150 cursor-pointer px-2 py-1 rounded-lg hover:bg-white/[0.05] active:scale-[0.95]"
-                title="Set end point to current position"
-              >
-                Set Out
-              </button>
-            </>
-          )}
+        {/* Right: volume */}
+        <div className="flex-1 flex items-center justify-end gap-2">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" className="text-white/20 flex-shrink-0">
+            <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/>
+          </svg>
+          <input
+            type="range"
+            className="player-scrubber w-20"
+            min={0}
+            max={100}
+            value={volPct}
+            style={{ '--progress': `${volPct}%` }}
+            onChange={e => setVolume(Number(e.target.value) / 100)}
+          />
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" className="text-white/20 flex-shrink-0">
+            <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+          </svg>
         </div>
       </div>
     </div>

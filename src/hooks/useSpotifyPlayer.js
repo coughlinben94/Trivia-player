@@ -12,18 +12,22 @@ export function useSpotifyPlayer({ onAdvance } = {}) {
   const [position, setPosition] = useState(0)
   const [duration, setDuration] = useState(0)
   const [error, setError] = useState(null)
+  const [volume, setVolumeState] = useState(0.8)
 
   const playerRef = useRef(null)
   const deviceIdRef = useRef(null)
-  const genRef = useRef(0)            // abort stale fades when new song starts
-  const monitorRef = useRef(null)     // position monitor interval
-  const seekingRef = useRef(false)    // suppress monitor updates while scrubbing
+  const genRef = useRef(0)
+  const monitorRef = useRef(null)
+  const seekingRef = useRef(false)
   const seekTimerRef = useRef(null)
+  const maxVolumeRef = useRef(0.8)
   const onAdvanceRef = useRef(onAdvance)
 
   useEffect(() => { onAdvanceRef.current = onAdvance }, [onAdvance])
 
   useEffect(() => {
+    window.onSpotifyWebPlaybackSDKReady = () => {}
+
     let player
 
     const init = async () => {
@@ -78,7 +82,7 @@ export function useSpotifyPlayer({ onAdvance } = {}) {
     const steps = FADE_STEPS
     const stepMs = FADE_MS / steps
     for (let i = 0; i <= steps; i++) {
-      if (genRef.current !== gen) return   // aborted by new song
+      if (genRef.current !== gen) return
       const v = from + (to - from) * (i / steps)
       player.setVolume(Math.max(0, Math.min(1, v)))
       await sleep(stepMs)
@@ -96,10 +100,10 @@ export function useSpotifyPlayer({ onAdvance } = {}) {
       const pos = state.position
       setPosition(pos)
 
+      const maxVol = maxVolumeRef.current
       if (stopMs > 0 && pos >= stopMs - FADE_MS) {
         clearInterval(monitorRef.current)
-        // Fade out then advance
-        await fadeVolume(0.8, 0, gen)
+        await fadeVolume(maxVol, 0, gen)
         if (genRef.current !== gen) return
         await playerRef.current?.pause()
         playerRef.current?.setVolume(0)
@@ -118,7 +122,6 @@ export function useSpotifyPlayer({ onAdvance } = {}) {
     const gen = genRef.current
     clearInterval(monitorRef.current)
 
-    // Mute before starting
     player.setVolume(0)
     setIsPaused(false)
 
@@ -132,7 +135,6 @@ export function useSpotifyPlayer({ onAdvance } = {}) {
       }
     )
 
-    // Wait for the track to be active
     await new Promise(resolve => {
       const timeout = setTimeout(resolve, 4000)
       const check = (state) => {
@@ -147,7 +149,6 @@ export function useSpotifyPlayer({ onAdvance } = {}) {
 
     if (genRef.current !== gen) return
 
-    // Seek to start
     if (startMs > 0) {
       await player.seek(startMs)
       await sleep(300)
@@ -155,12 +156,11 @@ export function useSpotifyPlayer({ onAdvance } = {}) {
 
     if (genRef.current !== gen) return
 
-    // Fade in
-    await fadeVolume(0, 0.8, gen)
+    const maxVol = maxVolumeRef.current
+    await fadeVolume(0, maxVol, gen)
 
     if (genRef.current !== gen) return
 
-    // Monitor for stop time
     if (stopMs > startMs) startMonitor(stopMs, gen)
   }, [startMonitor])
 
@@ -169,7 +169,8 @@ export function useSpotifyPlayer({ onAdvance } = {}) {
     genRef.current += 1
     const gen = genRef.current
     clearInterval(monitorRef.current)
-    await fadeVolume(0.8, 0, gen)
+    const maxVol = maxVolumeRef.current
+    await fadeVolume(maxVol, 0, gen)
     if (genRef.current !== gen) return
     await playerRef.current?.pause()
     playerRef.current?.setVolume(0)
@@ -181,12 +182,20 @@ export function useSpotifyPlayer({ onAdvance } = {}) {
     clearTimeout(seekTimerRef.current)
     setPosition(ms)
     playerRef.current?.seek(ms)
-    // Resume monitor after Spotify catches up
     seekTimerRef.current = setTimeout(() => { seekingRef.current = false }, 700)
+  }, [])
+
+  // ─── Volume control ──────────────────────────────────────────────
+  const setVolume = useCallback((v) => {
+    maxVolumeRef.current = v
+    setVolumeState(v)
+    // Only set directly if currently playing (not mid-fade)
+    playerRef.current?.setVolume(v)
   }, [])
 
   return {
     isReady, isPaused, currentTrack, position, duration, error,
+    volume, setVolume,
     playTrack, fadeAndPause, seek,
   }
 }
