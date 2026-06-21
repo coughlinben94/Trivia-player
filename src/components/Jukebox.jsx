@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { searchTracks, getPlaylists, getPlaylistTracks, logout } from '../lib/spotify'
+import { searchTracks, logout } from '../lib/spotify'
 import { useSpotifyPlayer } from '../hooks/useSpotifyPlayer'
 import Player from './Player'
 import LiveScreen from './LiveScreen'
@@ -20,7 +20,6 @@ function loadSets() {
   try {
     const stored = JSON.parse(localStorage.getItem('trivia_sets') ?? 'null')
     if (stored) return stored
-    // Migrate old flat library
     const old = JSON.parse(localStorage.getItem('trivia_library') ?? '[]')
     return { activeId: 'main', items: { main: { name: 'Main Library', songs: old } } }
   } catch {
@@ -30,15 +29,8 @@ function loadSets() {
 
 export default function Jukebox({ onLogout }) {
   const [sets, setSets] = useState(loadSets)
-  const [tab, setTab] = useState('search')
   const [query, setQuery] = useState('')
   const [results, setResults] = useState([])
-  const [playlists, setPlaylists] = useState([])
-  const [openPlaylist, setOpenPlaylist] = useState(null)
-  const [playlistTracks, setPlaylistTracks] = useState([])
-  const [playlistError, setPlaylistError] = useState(null)
-  const [loadingPlaylist, setLoadingPlaylist] = useState(false)
-  const [loadingPlaylists, setLoadingPlaylists] = useState(false)
   const [searching, setSearching] = useState(false)
   const [resultsKey, setResultsKey] = useState(0)
   const [playingId, setPlayingId] = useState(null)
@@ -99,25 +91,6 @@ export default function Jukebox({ onLogout }) {
     }
   }, [player.currentTrack?.uri])
 
-  useEffect(() => {
-    if (tab === 'playlists' && playlists.length === 0 && !loadingPlaylists) {
-      setLoadingPlaylists(true)
-      getPlaylists().then(items => { setPlaylists(items); setLoadingPlaylists(false) })
-    }
-  }, [tab])
-
-  const openPlaylistFn = async (pl) => {
-    setOpenPlaylist(pl)
-    setPlaylistTracks([])
-    setPlaylistError(null)
-    setLoadingPlaylist(true)
-    try {
-      const { tracks, error } = await getPlaylistTracks(pl.id)
-      setPlaylistTracks(tracks)
-      setPlaylistError(error)
-    } finally { setLoadingPlaylist(false) }
-  }
-
   const search = useCallback((q) => {
     clearTimeout(debounceRef.current)
     if (!q.trim()) { setResults([]); return }
@@ -134,12 +107,6 @@ export default function Jukebox({ onLogout }) {
   const addToLibrary = (track) => {
     if (!track || library.some(t => t.id === track.id)) return
     setLibrary(prev => [...prev, { ...track, startMs: 0, stopMs: track.duration_ms }])
-  }
-
-  const addAllToLibrary = (tracks) => {
-    const toAdd = tracks.filter(t => t && !library.some(l => l.id === t.id))
-    if (toAdd.length === 0) return
-    setLibrary(prev => [...prev, ...toAdd.map(t => ({ ...t, startMs: 0, stopMs: t.duration_ms }))])
   }
 
   const removeFromLibrary = (id) => {
@@ -251,7 +218,7 @@ export default function Jukebox({ onLogout }) {
   return (
     <div className="h-screen bg-[#0a0a0a] text-white flex flex-col overflow-hidden">
       {/* Header */}
-      <header className="sticky top-0 z-10 border-b border-white/[0.05] bg-[#0a0a0a]/90 backdrop-blur-md px-6 py-4 flex items-center justify-between">
+      <header className="sticky top-0 z-10 border-b border-white/[0.05] bg-[#0a0a0a]/90 backdrop-blur-md px-6 py-4 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-2.5">
           <span className="text-lg">🎵</span>
           <span className="text-sm font-semibold text-white/90 tracking-tight">Trivia Jukebox</span>
@@ -280,32 +247,15 @@ export default function Jukebox({ onLogout }) {
         </div>
       </header>
 
-      {/* Body */}
+      {/* Body: sidebar + library + search */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Left sidebar — sets */}
-        <aside className="w-44 flex-shrink-0 border-r border-white/[0.05] bg-[#0d0d0d] flex flex-col py-4 overflow-y-auto">
-          <p className="text-[9px] font-bold uppercase tracking-widest text-white/20 px-4 mb-3">Trivia Themes</p>
-          <div className="flex-1 space-y-0.5 px-2">
-            {setOrder.map(id => (
-              <SetItem
-                key={id}
-                id={id}
-                set={sets.items[id]}
-                isActive={sets.activeId === id}
-                isRenaming={renamingId === id}
-                renamingVal={renamingVal}
-                onSelect={() => switchSet(id)}
-                onDelete={id !== 'main' ? () => deleteSet(id) : undefined}
-                onStartRename={() => { setRenamingId(id); setRenamingVal(sets.items[id].name) }}
-                onRenameChange={setRenamingVal}
-                onRenameCommit={() => renameSet(id)}
-                onRenameCancel={() => setRenamingId(null)}
-              />
-            ))}
-          </div>
 
-          {/* Add new theme */}
-          <div className="px-2 mt-3">
+        {/* Left sidebar — trivia themes */}
+        <aside className="w-44 flex-shrink-0 border-r border-white/[0.05] bg-[#0d0d0d] flex flex-col py-4 overflow-y-auto">
+          <p className="text-[9px] font-bold uppercase tracking-widest text-white/20 px-4 mb-2">Trivia Themes</p>
+
+          {/* Add new theme — at top */}
+          <div className="px-2 mb-3">
             {addingSet ? (
               <div className="flex gap-1">
                 <input
@@ -332,211 +282,130 @@ export default function Jukebox({ onLogout }) {
               </button>
             )}
           </div>
+
+          <div className="flex-1 space-y-0.5 px-2">
+            {setOrder.map(id => (
+              <SetItem
+                key={id}
+                id={id}
+                set={sets.items[id]}
+                isActive={sets.activeId === id}
+                isRenaming={renamingId === id}
+                renamingVal={renamingVal}
+                onSelect={() => switchSet(id)}
+                onDelete={id !== 'main' ? () => deleteSet(id) : undefined}
+                onStartRename={() => { setRenamingId(id); setRenamingVal(sets.items[id].name) }}
+                onRenameChange={setRenamingVal}
+                onRenameCommit={() => renameSet(id)}
+                onRenameCancel={() => setRenamingId(null)}
+              />
+            ))}
+          </div>
         </aside>
 
-        {/* Main content */}
-        <main className="flex-1 overflow-y-auto">
-          <div className="max-w-2xl mx-auto px-5 py-8 pb-44 space-y-6">
-            {/* Active theme banner */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-base font-bold text-white">{activeSetName}</span>
-                {library.length > 0 && (
-                  <span className="text-[11px] text-white/25 font-medium">{library.length} songs</span>
-                )}
-              </div>
-              {sets.activeId !== 'main' && (
-                <span className="text-[10px] text-[#1DB954]/60 font-medium uppercase tracking-wider">Theme Night</span>
+        {/* Library panel */}
+        <div className="flex-1 flex flex-col overflow-hidden border-r border-white/[0.05]">
+          {/* Library header */}
+          <div className="px-4 py-3 border-b border-white/[0.05] flex items-center justify-between flex-shrink-0">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold text-white">{activeSetName}</span>
+              {library.length > 0 && (
+                <span className="text-[11px] text-white/25">{library.length}</span>
               )}
             </div>
+            {library.length > 0 && (
+              confirmClear ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] text-white/40">Clear all?</span>
+                  <button onClick={clearLibrary} className="text-[11px] text-red-400 hover:text-red-300 cursor-pointer transition-colors">Yes</button>
+                  <button onClick={() => setConfirmClear(false)} className="text-[11px] text-white/30 hover:text-white/60 cursor-pointer transition-colors">Cancel</button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setConfirmClear(true)}
+                  className="text-[11px] text-white/20 hover:text-white/40 transition-colors duration-150 cursor-pointer"
+                >
+                  Clear all
+                </button>
+              )
+            )}
+          </div>
 
-            {/* Tabs */}
-            <div className="flex justify-center">
-              <div className="flex gap-1 bg-white/[0.04] p-1 rounded-xl">
-                {['search', 'playlists'].map(t => (
-                  <button
-                    key={t}
-                    onClick={() => setTab(t)}
-                    className={`px-4 py-1.5 rounded-lg text-xs font-medium capitalize transition-all duration-150 cursor-pointer ${
-                      tab === t ? 'bg-white text-black' : 'text-white/40 hover:text-white/70'
-                    }`}
-                  >
-                    {t}
-                  </button>
+          {/* Library grid */}
+          <div className="flex-1 overflow-y-auto p-3 pb-32">
+            {library.length > 0 ? (
+              <div className="grid grid-cols-4 gap-2">
+                {library.map((track, i) => (
+                  <LibraryCard
+                    key={track.id}
+                    track={track}
+                    isPlaying={track.id === playingId && !player.isPaused}
+                    isPaused={track.id === playingId && player.isPaused}
+                    onRemove={() => removeFromLibrary(track.id)}
+                    onClick={() => setModalTrack(track)}
+                    onDragStart={() => handleDragStart(i)}
+                    onDragOver={(e) => handleDragOver(e, i)}
+                    onDragEnd={handleDragEnd}
+                  />
                 ))}
               </div>
-            </div>
-
-            {/* Search tab */}
-            {tab === 'search' && (
-              <div>
-                <div className="relative">
-                  <div className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-white/25">
-                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                      <path d="M7 12A5 5 0 1 0 7 2a5 5 0 0 0 0 10ZM14 14l-3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                    </svg>
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="Search for a song…"
-                    value={query}
-                    onChange={e => { setQuery(e.target.value); search(e.target.value) }}
-                    className="w-full bg-white/[0.04] border border-white/[0.06] rounded-2xl pl-10 pr-5 py-3.5 text-white placeholder-white/20 outline-none focus:border-[#1DB954]/35 focus:bg-white/[0.06] transition-all duration-200 text-sm"
-                  />
-                  {searching && (
-                    <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                      <div className="w-3.5 h-3.5 border-[1.5px] border-white/10 border-t-[#1DB954] rounded-full animate-spin" />
-                    </div>
-                  )}
-                </div>
-
-                {results.length > 0 && (
-                  <div key={resultsKey} className="mt-1.5 bg-[#0f0f0f] border border-white/[0.06] rounded-2xl overflow-hidden shadow-xl">
-                    {results.map((track, i) => (
-                      <TrackRow
-                        key={track.id}
-                        track={track}
-                        index={i}
-                        inLibrary={inLibrary(track.id)}
-                        onAdd={addToLibrary}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Playlists tab */}
-            {tab === 'playlists' && (
-              <div>
-                {openPlaylist ? (
-                  <div>
-                    <div className="flex items-center justify-between mb-4">
-                      <button
-                        onClick={() => { setOpenPlaylist(null); setPlaylistTracks([]) }}
-                        className="flex items-center gap-2 text-xs text-white/40 hover:text-white/70 transition-colors cursor-pointer"
-                      >
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
-                        {openPlaylist.name}
-                      </button>
-                      {playlistTracks.length > 0 && (
-                        <button
-                          onClick={() => addAllToLibrary(playlistTracks)}
-                          className="text-[11px] font-semibold text-[#1DB954] bg-[#1DB954]/10 hover:bg-[#1DB954]/20 px-3 py-1 rounded-full transition-all duration-150 cursor-pointer active:scale-[0.97]"
-                        >
-                          + Add all
-                        </button>
-                      )}
-                    </div>
-                    {loadingPlaylist ? (
-                      <div className="flex justify-center py-10">
-                        <div className="w-4 h-4 border-[1.5px] border-white/10 border-t-[#1DB954] rounded-full animate-spin" />
-                      </div>
-                    ) : playlistError ? (
-                      <div className="py-10 text-center space-y-2">
-                        <p className="text-red-400/60 text-xs">{playlistError}</p>
-                        <p className="text-white/20 text-[11px]">Try disconnecting and reconnecting Spotify to refresh permissions.</p>
-                      </div>
-                    ) : playlistTracks.length === 0 ? (
-                      <div className="py-10 text-center text-white/20 text-xs">No tracks found in this playlist.</div>
-                    ) : (
-                      <div className="bg-[#0f0f0f] border border-white/[0.06] rounded-2xl overflow-hidden">
-                        {playlistTracks.map((track, i) => (
-                          <TrackRow
-                            key={track.id + i}
-                            track={track}
-                            index={i}
-                            inLibrary={inLibrary(track.id)}
-                            onAdd={addToLibrary}
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-5 gap-2">
-                    {loadingPlaylists ? (
-                      <div className="col-span-3 py-10 text-center">
-                        <div className="w-4 h-4 border-[1.5px] border-white/10 border-t-[#1DB954] rounded-full animate-spin mx-auto" />
-                      </div>
-                    ) : playlists.length === 0 ? (
-                      <div className="col-span-3 py-10 text-center text-white/20 text-xs">
-                        No playlists found — try disconnecting and reconnecting Spotify.
-                      </div>
-                    ) : playlists.map((pl, i) => (
-                      <button
-                        key={pl.id}
-                        onClick={() => openPlaylistFn(pl)}
-                        className="animate-fade-up text-left group rounded-xl overflow-hidden bg-white/[0.03] hover:bg-white/[0.06] transition-all duration-150 cursor-pointer active:scale-[0.98]"
-                        style={{ animationDelay: `${i * 25}ms` }}
-                      >
-                        <div className="aspect-square bg-white/[0.04]">
-                          {pl.images?.[0]?.url
-                            ? <img src={pl.images[0].url} alt="" className="w-full h-full object-cover" />
-                            : <div className="w-full h-full flex items-center justify-center text-2xl">🎵</div>
-                          }
-                        </div>
-                        <div className="p-2.5 text-center">
-                          <p className="text-xs font-medium text-white truncate">{pl.name}</p>
-                          <p className="text-[10px] text-white/30 mt-0.5">{pl.tracks?.total} songs</p>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Library */}
-            {library.length > 0 && tab === 'search' && (
-              <div className="animate-fade-up">
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-[11px] font-semibold text-white/30 uppercase tracking-widest">
-                    {activeSetName} · {library.length}
-                  </span>
-                  {confirmClear ? (
-                    <div className="flex items-center gap-2">
-                      <span className="text-[11px] text-white/40">Clear all?</span>
-                      <button onClick={clearLibrary} className="text-[11px] text-red-400 hover:text-red-300 cursor-pointer transition-colors">Yes</button>
-                      <button onClick={() => setConfirmClear(false)} className="text-[11px] text-white/30 hover:text-white/60 cursor-pointer transition-colors">Cancel</button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => setConfirmClear(true)}
-                      className="text-[11px] text-white/20 hover:text-white/40 transition-colors duration-150 cursor-pointer"
-                    >
-                      Clear all
-                    </button>
-                  )}
-                </div>
-                <div className="grid grid-cols-5 gap-2">
-                  {library.map((track, i) => (
-                    <LibraryCard
-                      key={track.id}
-                      track={track}
-                      isPlaying={track.id === playingId && !player.isPaused}
-                      isPaused={track.id === playingId && player.isPaused}
-                      onRemove={() => removeFromLibrary(track.id)}
-                      onClick={() => setModalTrack(track)}
-                      onDragStart={() => handleDragStart(i)}
-                      onDragOver={(e) => handleDragOver(e, i)}
-                      onDragEnd={handleDragEnd}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {library.length === 0 && tab === 'search' && !query && (
-              <div className="text-center py-16 select-none space-y-2">
-                <p className="text-white/[0.15] text-sm">
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full text-center select-none pb-16">
+                <p className="text-white/[0.12] text-sm">
                   {sets.activeId === 'main' ? 'Your library is empty' : `${activeSetName} is empty`}
                 </p>
-                <p className="text-white/[0.08] text-xs">Search above or use Playlists to add songs</p>
+                <p className="text-white/[0.07] text-xs mt-1">Search on the right to add songs</p>
               </div>
             )}
           </div>
-        </main>
+        </div>
+
+        {/* Search panel */}
+        <div className="w-80 flex-shrink-0 flex flex-col overflow-hidden">
+          {/* Search input */}
+          <div className="p-3 border-b border-white/[0.05] flex-shrink-0">
+            <div className="relative">
+              <div className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-white/25">
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                  <path d="M7 12A5 5 0 1 0 7 2a5 5 0 0 0 0 10ZM14 14l-3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                </svg>
+              </div>
+              <input
+                type="text"
+                placeholder="Search for a song…"
+                value={query}
+                onChange={e => { setQuery(e.target.value); search(e.target.value) }}
+                className="w-full bg-white/[0.04] border border-white/[0.06] rounded-xl pl-9 pr-4 py-2.5 text-white placeholder-white/20 outline-none focus:border-[#1DB954]/35 focus:bg-white/[0.06] transition-all duration-200 text-sm"
+              />
+              {searching && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <div className="w-3 h-3 border-[1.5px] border-white/10 border-t-[#1DB954] rounded-full animate-spin" />
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Search results */}
+          <div className="flex-1 overflow-y-auto pb-32">
+            {results.length > 0 ? (
+              <div key={resultsKey}>
+                {results.map((track, i) => (
+                  <TrackRow
+                    key={track.id}
+                    track={track}
+                    index={i}
+                    inLibrary={inLibrary(track.id)}
+                    onAdd={addToLibrary}
+                  />
+                ))}
+              </div>
+            ) : !searching && !query ? (
+              <div className="flex items-center justify-center h-full text-white/[0.08] text-xs pb-16">
+                Type to search Spotify
+              </div>
+            ) : null}
+          </div>
+        </div>
       </div>
 
       {showLive && (
@@ -615,7 +484,7 @@ function TrackRow({ track, index, inLibrary, onAdd }) {
   const artists = track.artists?.map(a => a.name).join(', ')
   return (
     <div
-      className="animate-fade-up flex items-center gap-3 px-4 py-2.5 border-b border-white/[0.04] last:border-0 hover:bg-white/[0.03] transition-colors duration-150"
+      className="animate-fade-up flex items-center gap-3 px-3 py-2.5 border-b border-white/[0.04] last:border-0 hover:bg-white/[0.03] transition-colors duration-150"
       style={{ animationDelay: `${index * 25}ms` }}
     >
       {img
