@@ -245,7 +245,7 @@ export default function Jukebox({ onLogout }) {
   const setOrder = Object.keys(sets.items)
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col">
+    <div className="h-screen bg-[#0a0a0a] text-white flex flex-col overflow-hidden">
       {/* Header */}
       <header className="sticky top-0 z-10 border-b border-white/[0.05] bg-[#0a0a0a]/90 backdrop-blur-md px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
