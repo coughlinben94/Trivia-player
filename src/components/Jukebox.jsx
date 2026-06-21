@@ -176,7 +176,7 @@ export default function Jukebox({ onLogout }) {
 
   const renameSet = (id) => {
     const name = renamingVal.trim()
-    if (!name || id === 'main') return
+    if (!name) return
     setSets(prev => ({
       ...prev,
       items: { ...prev.items, [id]: { ...prev.items[id], name } }
@@ -216,9 +216,9 @@ export default function Jukebox({ onLogout }) {
   const setOrder = Object.keys(sets.items)
 
   return (
-    <div className="h-screen bg-[#0a0a0a] text-white flex flex-col overflow-hidden">
+    <div className="h-screen bg-[#1a0808] text-white flex flex-col overflow-hidden">
       {/* Header */}
-      <header className="sticky top-0 z-10 border-b border-white/[0.05] bg-[#0a0a0a]/90 backdrop-blur-md px-6 py-4 flex items-center justify-between flex-shrink-0">
+      <header className="sticky top-0 z-10 border-b border-white/[0.05] bg-[#1a0808]/90 backdrop-blur-md px-6 py-4 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-2.5">
           <span className="text-lg">🎵</span>
           <span className="text-sm font-semibold text-white/90 tracking-tight">Trivia Jukebox</span>
@@ -251,7 +251,7 @@ export default function Jukebox({ onLogout }) {
       <div className="flex flex-1 overflow-hidden">
 
         {/* Left sidebar — trivia themes */}
-        <aside className="w-44 flex-shrink-0 border-r border-white/[0.05] bg-[#0d0d0d] flex flex-col py-4 overflow-y-auto">
+        <aside className="w-44 flex-shrink-0 border-r border-white/[0.05] bg-[#150606] flex flex-col py-4 overflow-y-auto">
           <p className="text-[9px] font-bold uppercase tracking-widest text-white/20 px-4 mb-2">Trivia Themes</p>
 
           {/* Add new theme — at top */}
@@ -460,7 +460,7 @@ function SetItem({ id, set, isActive, isRenaming, renamingVal, onSelect, onDelet
       ) : (
         <button
           onClick={onSelect}
-          onDoubleClick={id !== 'main' ? onStartRename : undefined}
+          onDoubleClick={onStartRename}
           className="flex-1 text-left text-[11px] font-medium truncate cursor-pointer"
         >
           {set.name}
