@@ -55,36 +55,45 @@ function TimeField({ label, value, maxMs, onChange }) {
   )
 }
 
-function SetMarkerButton({ label, position, onClick }) {
-  const [flash, setFlash] = useState(false)
+function SetMarkerButton({ label, position, savedMs, onClick }) {
+  const [wasJustSet, setWasJustSet] = useState(false)
 
   const handleClick = () => {
     onClick()
-    setFlash(true)
-    setTimeout(() => setFlash(false), 600)
+    setWasJustSet(true)
   }
+
+  // Clear the "just set" state once the scrubber moves away from the saved point
+  useEffect(() => {
+    if (wasJustSet && Math.abs(position - savedMs) > 500) {
+      setWasJustSet(false)
+    }
+  }, [position, savedMs, wasJustSet])
+
+  const isConfirmed = wasJustSet || Math.abs(position - savedMs) < 500
 
   return (
     <button
       onClick={handleClick}
-      style={{ transition: 'transform 160ms cubic-bezier(0.23,1,0.32,1), background 160ms cubic-bezier(0.23,1,0.32,1)' }}
-      className={`py-3 rounded-xl flex flex-col items-center gap-0.5 cursor-pointer
-        ${flash
-          ? 'bg-[#1DB954]/20 scale-[0.97]'
+      style={{ transition: 'transform 160ms cubic-bezier(0.23,1,0.32,1), background 200ms cubic-bezier(0.23,1,0.32,1)' }}
+      className={`py-3 rounded-xl flex flex-col items-center gap-0.5 cursor-pointer active:scale-[0.97]
+        ${isConfirmed
+          ? 'bg-[#1DB954]/15 ring-1 ring-[#1DB954]/25'
           : 'bg-white/[0.05] hover:bg-white/[0.09]'
         }`}
     >
       <span
         className="text-[10px] font-bold uppercase tracking-wider"
-        style={{ transition: 'color 160ms cubic-bezier(0.23,1,0.32,1)' }}
+        style={{ transition: 'color 200ms cubic-bezier(0.23,1,0.32,1)' }}
       >
-        {flash ? (
-          <span className="text-[#1DB954]">✓ Set</span>
-        ) : (
-          <span className="text-white/70">{label}</span>
-        )}
+        {isConfirmed
+          ? <span className="text-[#1DB954]">✓ {label}</span>
+          : <span className="text-white/70">{label}</span>
+        }
       </span>
-      <span className="text-[10px] text-white/30 tabular-nums">{fmt(position)}</span>
+      <span className="text-[10px] tabular-nums" style={{ transition: 'color 200ms', color: isConfirmed ? 'rgba(29,185,84,0.6)' : 'rgba(255,255,255,0.3)' }}>
+        {fmt(savedMs)}
+      </span>
     </button>
   )
 }
@@ -208,7 +217,7 @@ export default function SongDetailModal({ track, player, onUpdateTimes, onClose 
 
           {/* Set In / Play / Set Out */}
           <div className="grid grid-cols-3 gap-2 mb-4">
-            <SetMarkerButton label="Set In" position={displayPosition} onClick={handleSetIn} />
+            <SetMarkerButton label="Set In" position={displayPosition} savedMs={startMs} onClick={handleSetIn} />
 
             <button
               onClick={isPlaying ? handleStop : handlePlay}
@@ -222,7 +231,7 @@ export default function SongDetailModal({ track, player, onUpdateTimes, onClose 
               {isPlaying ? '⏸' : '▶'}
             </button>
 
-            <SetMarkerButton label="Set Out" position={displayPosition} onClick={handleSetOut} />
+            <SetMarkerButton label="Set Out" position={displayPosition} savedMs={stopMs} onClick={handleSetOut} />
           </div>
 
           {/* Editable In/Out times */}
