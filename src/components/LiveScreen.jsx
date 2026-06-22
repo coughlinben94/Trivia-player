@@ -54,9 +54,8 @@ export default function LiveScreen({ currentTrack, isPaused, ending, onClose, ne
   const [spinPaused, setSpinPaused]       = useState(false)
   const [upcomingArtUrl, setUpcomingArtUrl] = useState(null)
 
-  const paletteColors     = usePalette(artUrl)
-  const nextPaletteColors = usePalette(nextArtUrl ?? null)
-  usePalette(upcomingArtUrl) // primes module-level palette cache as early as possible; return value unused
+  const paletteColors          = usePalette(artUrl)
+  const upcomingPaletteColors  = usePalette(upcomingArtUrl)
 
   const tonearmCtrl = useAnimation()
   const flyCtrl     = useAnimation()
@@ -125,7 +124,7 @@ export default function LiveScreen({ currentTrack, isPaused, ending, onClose, ne
       return
     }
 
-    // Pause: 300ms delay → arm lifts deliberately → spin stops once arm clears record
+    // Pause: 1300ms delay → arm lifts deliberately → spin stops once arm clears record
     const t1 = setTimeout(() => {
       tonearmCtrl.start({
         ...ARM_OFF,
@@ -133,7 +132,7 @@ export default function LiveScreen({ currentTrack, isPaused, ending, onClose, ne
       })
       const t2 = setTimeout(() => setSpinPaused(true), 600)
       pauseSeqRef.current.push(t2)
-    }, 300)
+    }, 1300)
     pauseSeqRef.current = [t1]
 
     return () => {
@@ -228,6 +227,9 @@ export default function LiveScreen({ currentTrack, isPaused, ending, onClose, ne
         // Let the re-sync animation start before any recursive call fires ARM_OFF
         await new Promise(r => setTimeout(r, 50))
 
+        // Clear upcoming palette — prevents stale colors bleeding through between songs
+        setUpcomingArtUrl(null)
+
         // Drain any skip that arrived mid-transition
         if (pendingRef.current && pendingRef.current.uri !== target.uri) {
           const pending = pendingRef.current
@@ -262,7 +264,7 @@ export default function LiveScreen({ currentTrack, isPaused, ending, onClose, ne
   return (
     <div className="fixed inset-0 bg-black z-50 overflow-hidden flex flex-col items-center justify-start">
 
-      <AlbumGradient colors={paletteColors} nextColors={nextPaletteColors} active={!isPaused || transitioning} shuffleKey={shuffleKey} />
+      <AlbumGradient colors={paletteColors} nextColors={upcomingPaletteColors} active={!isPaused || transitioning} shuffleKey={shuffleKey} />
 
       <div className="relative z-10 flex flex-col items-center gap-8 px-10 text-center max-w-lg w-full" style={{ paddingTop: '20vh' }}>
         {shown ? (

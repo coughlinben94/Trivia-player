@@ -237,6 +237,8 @@ export default function SongDetailModal({ track, player, onUpdateTimes, onClose 
               value={displayPosition}
               style={{ '--progress': `${pct}%` }}
               onChange={e => handleScrub(Number(e.target.value))}
+              onMouseUp={handleSetIn}
+              onTouchEnd={handleSetIn}
             />
           </div>
           <div className="flex justify-between mb-4">
