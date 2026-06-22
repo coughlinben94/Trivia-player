@@ -55,6 +55,7 @@ export default function LiveScreen({ currentTrack, isPaused, ending, onClose, ne
   const [spinPaused, setSpinPaused]       = useState(false)
   const [upcomingArtUrl, setUpcomingArtUrl] = useState(null)
   const [textInstant, setTextInstant]     = useState(false)
+  const [closing, setClosing]             = useState(false)
 
   const paletteColors          = usePalette(artUrl)
   const upcomingPaletteColors  = usePalette(upcomingArtUrl)
@@ -162,14 +163,15 @@ export default function LiveScreen({ currentTrack, isPaused, ending, onClose, ne
     if (!ending) return
     busyRef.current = true
     setTransitioning(true)
-    let t2
+    let t2, t3
     const t1 = setTimeout(() => {
       tonearmCtrl.start({ ...ARM_OFF, transition: { type: 'spring', stiffness: 80, damping: 20 } })
       flyCtrl.start({ y: -500, transition: { type: 'spring', stiffness: 220, damping: 22 } })
       setArtOpacity(0)
-      t2 = setTimeout(onClose, 300)
+      t2 = setTimeout(() => setClosing(true), 900)
+      t3 = setTimeout(onClose, 1100)
     }, 400)
-    return () => { clearTimeout(t1); clearTimeout(t2) }
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3) }
   }, [ending])
 
   // Hide text immediately when a new track arrives — instant (no fade) before runTransition fires
@@ -193,6 +195,7 @@ export default function LiveScreen({ currentTrack, isPaused, ending, onClose, ne
         pendingRef.current = null
         busyRef.current = true
         setTextVisible(false)
+        setTextInstant(true)
         setTransitioning(true)
 
         // Step 1 — arm lifts alone; record stays put until arm is fully up
@@ -280,7 +283,7 @@ export default function LiveScreen({ currentTrack, isPaused, ending, onClose, ne
   }, [onClose])
 
   return (
-    <div className="fixed inset-0 bg-black z-50 overflow-hidden flex flex-col items-center justify-start">
+    <div className={`fixed inset-0 bg-black z-50 overflow-hidden flex flex-col items-center justify-start transition-opacity duration-200 ${closing ? 'opacity-0' : 'opacity-100'}`}>
 
       <AlbumGradient colors={paletteColors} nextColors={upcomingPaletteColors} active={!isPaused || transitioning} shuffleKey={shuffleKey} />
 
