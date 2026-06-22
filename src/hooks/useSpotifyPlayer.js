@@ -3,7 +3,7 @@ import { getToken } from '../lib/spotify'
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms))
 const FADE_STEPS = 24
-const FADE_MS = 2000
+const FADE_MS = 2500
 
 export function useSpotifyPlayer({ onAdvance } = {}) {
   const [isReady, setIsReady] = useState(false)
@@ -49,6 +49,7 @@ export function useSpotifyPlayer({ onAdvance } = {}) {
       player.addListener('not_ready', () => setIsReady(false))
       player.addListener('player_state_changed', state => {
         if (!state) return
+        console.log('SDK state_changed → paused:', state.paused, '| transitioningRef:', transitioningRef.current, '| track:', state.track_window.current_track?.name)
         setCurrentTrack(state.track_window.current_track)
         // Suppress the transient paused=true the SDK emits right after auto-advance pause()
         if (!transitioningRef.current) setIsPaused(state.paused)
@@ -121,15 +122,39 @@ export function useSpotifyPlayer({ onAdvance } = {}) {
   // ─── Play a track with custom start/stop ─────────────────────────
   const playTrack = useCallback(async (uri, startMs = 0, stopMs = 0, preview = false) => {
     const player = playerRef.current
-    const deviceId = deviceIdRef.current
-    if (!player || !deviceId) return
+    if (!player) return false
+
+    let deviceId = deviceIdRef.current
+    if (!deviceId) {
+      // SDK ready event hasn't fired yet — poll for up to 5s
+      deviceId = await new Promise(resolve => {
+        const deadline = setTimeout(() => resolve(null), 5000)
+        const poll = setInterval(() => {
+          if (deviceIdRef.current) {
+            clearInterval(poll)
+            clearTimeout(deadline)
+            resolve(deviceIdRef.current)
+          }
+        }, 100)
+      })
+      if (!deviceId) {
+        setError('Spotify player still connecting — try again in a moment.')
+        return false
+      }
+    }
 
     genRef.current += 1
     const gen = genRef.current
     clearInterval(monitorRef.current)
 
+    const t0 = Date.now()
+    const dbg = (...args) => console.log(`[jukebox +${Date.now()-t0}ms]`, ...args)
+
+    dbg(`playTrack start — startMs=${startMs}, stopMs=${stopMs}`)
+
     // Await the volume-zero so Spotify can't start audibly before the seek
     await player.setVolume(0)
+    dbg('vol=0')
     setIsPaused(false)
 
     const token = await getToken()
@@ -141,6 +166,7 @@ export function useSpotifyPlayer({ onAdvance } = {}) {
         body: JSON.stringify({ uris: [uri] }),
       }
     )
+    dbg('play fetch sent')
 
     await new Promise(resolve => {
       const timeout = setTimeout(resolve, 4000)
@@ -153,6 +179,7 @@ export function useSpotifyPlayer({ onAdvance } = {}) {
       }
       player.addListener('player_state_changed', check)
     })
+    dbg('track confirmed by SDK')
 
     transitioningRef.current = false  // new track confirmed; restore isPaused tracking
     if (genRef.current !== gen) return
@@ -163,26 +190,31 @@ export function useSpotifyPlayer({ onAdvance } = {}) {
       if (genRef.current !== gen) return
 
       const doSeek = async () => {
-        // Hit both the SDK and REST API — REST is more reliable
-        player.seek(startMs)
+        // REST API seek only — more reliable than SDK seek; using both caused a double-seek glitch
         const t = await getToken()
+        dbg(`REST seek → ${startMs}ms`)
         await fetch(
           `https://api.spotify.com/v1/me/player/seek?position_ms=${startMs}&device_id=${deviceId}`,
           { method: 'PUT', headers: { Authorization: `Bearer ${t}` } }
         )
+        dbg('REST seek done')
       }
 
       await doSeek()
 
-      // Poll until position lands within 1.5s of target.
-      // Never exit early on null state — only on confirmed position match.
+      // Poll until position lands at or just past the in-point.
+      // Allow up to 300ms before startMs to handle slight Spotify overshoot.
+      // Reject if position is still far before startMs — that means seek hasn't landed yet.
       const landed = await new Promise(resolve => {
         const deadline = setTimeout(() => resolve(false), 3000)
         const poll = setInterval(async () => {
           const s = await player.getCurrentState()
-          if (s && Math.abs(s.position - startMs) < 1500) {
+          if (!s) return
+          dbg(`poll pos=${s.position} (target ${startMs}, diff ${s.position - startMs})`)
+          if (s.position >= startMs - 300 && s.position <= startMs + 5000) {
             clearInterval(poll)
             clearTimeout(deadline)
+            dbg(`poll resolved at pos=${s.position}`)
             resolve(true)
           }
         }, 100)
@@ -190,6 +222,7 @@ export function useSpotifyPlayer({ onAdvance } = {}) {
 
       // If first seek timed out, try once more
       if (!landed && genRef.current === gen) {
+        dbg('seek timed out — retrying')
         await doSeek()
         await sleep(800)
       }
@@ -205,6 +238,7 @@ export function useSpotifyPlayer({ onAdvance } = {}) {
     if (genRef.current !== gen) return
 
     startMonitor(stopMs > startMs ? stopMs : 0, gen, preview)
+    return true
   }, [startMonitor])
 
   // ─── Fade out and pause ──────────────────────────────────────────

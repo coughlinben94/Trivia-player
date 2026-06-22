@@ -111,8 +111,9 @@ export default function SongDetailModal({ track, player, onUpdateTimes, onClose 
   const [stopMs, setStopMs]   = useState(track.stopMs  ?? track.duration_ms ?? 0)
 
   // Keep refs so handleClose always has current values even inside closures
-  const startMsRef = useRef(startMs)
-  const stopMsRef  = useRef(stopMs)
+  const startMsRef     = useRef(startMs)
+  const stopMsRef      = useRef(stopMs)
+  const handleCloseRef = useRef(null)  // always points to latest handleClose
   useEffect(() => { startMsRef.current = startMs }, [startMs])
   useEffect(() => { stopMsRef.current  = stopMs  }, [stopMs])
 
@@ -163,12 +164,13 @@ export default function SongDetailModal({ track, player, onUpdateTimes, onClose 
     if (isPlaying) fadeAndPause()
     onClose()
   }
+  handleCloseRef.current = handleClose  // keep ref fresh so Escape handler always calls latest
 
   useEffect(() => {
-    const h = (e) => { if (e.key === 'Escape') handleClose() }
+    const h = (e) => { if (e.key === 'Escape') handleCloseRef.current() }
     window.addEventListener('keydown', h)
     return () => window.removeEventListener('keydown', h)
-  }, [])  // stable via refs
+  }, [])  // stable: h always calls handleCloseRef.current which is always current
 
   return (
     <div

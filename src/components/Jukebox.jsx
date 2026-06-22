@@ -36,6 +36,7 @@ export default function Jukebox({ onLogout }) {
   const [playingId, setPlayingId] = useState(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [showLive, setShowLive] = useState(false)
+  const [liveEnding, setLiveEnding] = useState(false)
   const [modalTrack, setModalTrack] = useState(null)
   const [confirmClear, setConfirmClear] = useState(false)
   const [newSetName, setNewSetName] = useState('')
@@ -63,6 +64,9 @@ export default function Jukebox({ onLogout }) {
   const debounceRef = useRef(null)
   const playTrackFn = useRef(null)
   const dragIdxRef = useRef(null)
+  // Set true by startShuffle; consumed by the currentTrack watcher to open the live screen
+  // only after the SDK has confirmed the track — avoids the race that caused missing art
+  const pendingLiveOpenRef = useRef(false)
   // Always-live library ref so advanceToNext never closes over a stale snapshot
   const libraryRef = useRef(library)
   useEffect(() => { libraryRef.current = library }, [library])
@@ -72,7 +76,12 @@ export default function Jukebox({ onLogout }) {
     const order = shuffleOrderRef.current
     let idx = shuffleIdxRef.current + 1
     if (idx >= order.length) {
+      const lastLibIdx = order[order.length - 1]
       const newOrder = shuffleArray(lib.map((_, i) => i))
+      if (newOrder[0] === lastLibIdx && newOrder.length > 1) {
+        const swapIdx = 1 + Math.floor(Math.random() * (newOrder.length - 1))
+        ;[newOrder[0], newOrder[swapIdx]] = [newOrder[swapIdx], newOrder[0]]
+      }
       shuffleOrderRef.current = newOrder
       idx = 0
     }
@@ -86,12 +95,17 @@ export default function Jukebox({ onLogout }) {
   useEffect(() => {
     playTrackFn.current = (song) =>
       player.playTrack(song.uri, song.startMs ?? 0, song.stopMs ?? song.duration_ms)
+      // returns the Promise<true|false> from playTrack so startShuffle can await it
   }, [player.playTrack])
 
   useEffect(() => {
     if (player.currentTrack) {
       const match = library.find(t => t.uri === player.currentTrack.uri)
       if (match) setPlayingId(match.id)
+      if (pendingLiveOpenRef.current) {
+        pendingLiveOpenRef.current = false
+        setShowLive(true)
+      }
     }
   }, [player.currentTrack?.uri])
 
@@ -110,7 +124,7 @@ export default function Jukebox({ onLogout }) {
 
   const addToLibrary = (track) => {
     if (!track || library.some(t => t.id === track.id)) return
-    setLibrary(prev => [...prev, { ...track, startMs: 0, stopMs: track.duration_ms }])
+    setLibrary(prev => [{ ...track, startMs: 0, stopMs: track.duration_ms }, ...prev])
   }
 
   const removeFromLibrary = (id) => {
@@ -128,7 +142,8 @@ export default function Jukebox({ onLogout }) {
     setConfirmClear(false)
   }
 
-  const startShuffle = useCallback(() => {
+  const startShuffle = useCallback(async () => {
+    console.log('🔵 startShuffle CALLED — library.length:', library.length)
     if (library.length === 0) return
     const order = shuffleArray(library.map((_, i) => i))
     shuffleOrderRef.current = order
@@ -136,16 +151,27 @@ export default function Jukebox({ onLogout }) {
     const song = library[order[0]]
     setPlayingId(song.id)
     setIsPlaying(true)
-    setShowLive(true)
-    playTrackFn.current?.(song)
+    pendingLiveOpenRef.current = true   // live screen opens when SDK confirms the track
+    const started = await playTrackFn.current?.(song)
+    console.log('🔵 startShuffle DONE — started:', started)
+    if (!started) {
+      pendingLiveOpenRef.current = false
+      setIsPlaying(false)
+      setShowLive(false)
+      setPlayingId(null)
+    }
   }, [library])
 
-  const handleStop = useCallback(async () => {
-    await player.fadeAndPause()
+  const handleStop = useCallback(() => {
+    player.fadeAndPause()
     setIsPlaying(false)
     setPlayingId(null)
-    setShowLive(false)
-  }, [player.fadeAndPause])
+    if (showLive) {
+      setLiveEnding(true)  // LiveScreen animates out, then calls onClose → setShowLive(false)
+    } else {
+      setShowLive(false)
+    }
+  }, [player.fadeAndPause, showLive])
 
   const switchSet = (id) => {
     if (id === sets.activeId) return
@@ -402,7 +428,8 @@ export default function Jukebox({ onLogout }) {
         <LiveScreen
           currentTrack={player.currentTrack}
           isPaused={player.isPaused}
-          onClose={() => setShowLive(false)}
+          ending={liveEnding}
+          onClose={() => { setShowLive(false); setLiveEnding(false) }}
         />
       )}
 
