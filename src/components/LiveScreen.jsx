@@ -89,6 +89,7 @@ export default function LiveScreen({ currentTrack, isPaused, ending, onClose, ne
     mountedRef.current = true
 
     async function runEntrance() {
+      setTextInstant(true)
       busyRef.current = true
       setTextVisible(false)
 
