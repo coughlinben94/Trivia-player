@@ -5,7 +5,7 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms))
 const FADE_STEPS = 24
 const FADE_MS = 2500
 
-export function useSpotifyPlayer({ onAdvance } = {}) {
+export function useSpotifyPlayer({ onAdvance, onFadeStart } = {}) {
   const [isReady, setIsReady] = useState(false)
   const [isPaused, setIsPaused] = useState(true)
   const [currentTrack, setCurrentTrack] = useState(null)
@@ -22,10 +22,12 @@ export function useSpotifyPlayer({ onAdvance } = {}) {
   const seekTimerRef = useRef(null)
   const maxVolumeRef = useRef(0.8)
   const onAdvanceRef = useRef(onAdvance)
+  const onFadeStartRef = useRef(onFadeStart)
   // Suppresses the transient isPaused=true the SDK emits during auto-advance
   const transitioningRef = useRef(false)
 
   useEffect(() => { onAdvanceRef.current = onAdvance }, [onAdvance])
+  useEffect(() => { onFadeStartRef.current = onFadeStart }, [onFadeStart])
 
   useEffect(() => {
     window.onSpotifyWebPlaybackSDKReady = () => {}
@@ -108,6 +110,7 @@ export function useSpotifyPlayer({ onAdvance } = {}) {
       // Guard !state.paused: don't trigger on Spotify's own buffering pauses near stopMs
       if (stopMs > 0 && pos >= stopMs - FADE_MS && !state.paused) {
         clearInterval(monitorRef.current)
+        if (!preview) onFadeStartRef.current?.()
         await fadeVolume(maxVol, 0, gen)
         if (genRef.current !== gen) return
         transitioningRef.current = true   // suppress isPaused during advance gap

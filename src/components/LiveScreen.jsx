@@ -14,6 +14,7 @@ function preloadImage(url) {
     img.onload = resolve
     img.onerror = resolve
     img.src = url
+    setTimeout(resolve, 800)
   })
 }
 
@@ -191,8 +192,8 @@ export default function LiveScreen({ currentTrack, isPaused, ending, onClose, ne
         setPrev(prevTrack)
         await sleep(400)   // arm fully lifted
 
-        // Step 2 — record flies up slowly once arm is clear
-        flyCtrl.start({ y: -500, transition: { duration: 0.9, ease: [0.4, 0, 1, 1] } })
+        // Step 2 — record flies up once arm is clear
+        flyCtrl.start({ y: -500, transition: { type: 'spring', stiffness: 220, damping: 22 } })
         setArtOpacity(0)
         await Promise.all([preloadPromise, sleep(1000)])   // fly-up completes; preload runs concurrently
         // Old record is gone — swap track identity

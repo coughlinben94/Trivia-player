@@ -90,11 +90,17 @@ const [newSetName, setNewSetName] = useState('')
     shuffleIdxRef.current = idx
     setNextSong(lib[shuffleOrderRef.current[idx + 1]] ?? null)
     const song = lib[shuffleOrderRef.current[idx]]
-    onUpcomingTrackRef.current?.(song)
     if (song) { setPlayingId(song.id); playTrackFn.current?.(song) }
   }, [])
 
-  const player = useSpotifyPlayer({ onAdvance: advanceToNext })
+  const onFadeStart = useCallback(() => {
+    const lib = libraryRef.current
+    const order = shuffleOrderRef.current
+    const idx = shuffleIdxRef.current
+    onUpcomingTrackRef.current?.(lib[order[idx + 1]] ?? null)
+  }, [])
+
+  const player = useSpotifyPlayer({ onAdvance: advanceToNext, onFadeStart })
 
   const registerUpcomingTrackHandler = useCallback(fn => {
     onUpcomingTrackRef.current = fn
