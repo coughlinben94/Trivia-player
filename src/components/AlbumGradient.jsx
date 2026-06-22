@@ -1,6 +1,6 @@
 import { useEffect, useRef, useMemo } from 'react'
 
-const BLEND_FRAMES = 300          // 5 s at 60 fps
+const BLEND_FRAMES = 300
 const NUM_CIRCLES  = 6
 const DIRECTIONS   = ['left', 'right', 'up', 'down']
 
@@ -27,7 +27,7 @@ function easeInOut(t) {
 
 function lerp(a, b, t) { return a + (b - a) * t }
 
-// ── Circle layout — seeded per-index so positions are always stable ────────────
+// ── Circle layout — seeded per-index so positions are always deterministic ─────
 
 function makeCircleParams() {
   function rng(i, slot) {
@@ -35,15 +35,15 @@ function makeCircleParams() {
     return x - Math.floor(x)
   }
   return Array.from({ length: NUM_CIRCLES }, (_, i) => ({
-    baseX:  0.10 + rng(i, 0) * 0.80,        // centre 10–90 % of W
+    baseX:  0.10 + rng(i, 0) * 0.80,
     baseY:  0.10 + rng(i, 1) * 0.80,
-    xAmp:   0.20,                             // 20 % drift amplitude
+    xAmp:   0.20,
     yAmp:   0.20,
-    xFreq:  1 / (25 + rng(i, 2) * 15),      // period 25–40 s
+    xFreq:  1 / (25 + rng(i, 2) * 15),
     yFreq:  1 / (25 + rng(i, 3) * 15),
     xPhase: rng(i, 4) * Math.PI * 2,
     yPhase: rng(i, 5) * Math.PI * 2,
-    radius: 0.55 + rng(i, 6) * 0.15,        // 55–70 % of max(W, H)
+    radius: 0.55 + rng(i, 6) * 0.15,
   }))
 }
 
@@ -54,34 +54,47 @@ export default function AlbumGradient({ colors = [], active = true }) {
   const activeRef    = useRef(active)
   const mountedRef   = useRef(true)
   const rafRef       = useRef(null)
-  const tickRef      = useRef(null)   // set by canvas effect; lets active effect restart the loop
+  const tickRef      = useRef(null)
   const isFirst      = useRef(true)
   const circleParams = useMemo(makeCircleParams, [])
 
-  // All mutable animation state in one ref — avoids stale closures in the RAF
+  // All mutable animation state in one ref
   const st = useRef(null)
   if (!st.current) {
     const initial = parseColors(colors, NUM_CIRCLES)
     st.current = {
-      startRgb:     initial.map(c => [...c]),
-      currentRgb:   initial.map(c => [...c]),
-      targetRgb:    initial.map(c => [...c]),
-      blendFrame:   BLEND_FRAMES,   // fully blended at startup — no entrance animation
-      startOffsetX: 0,
-      startOffsetY: 0,
+      steadyRgb:  initial.map(c => [...c]),   // live colors in steady state
+      outRgb:     initial.map(c => [...c]),   // Layer A — outgoing
+      inRgb:      initial.map(c => [...c]),   // Layer B — incoming
+      blendFrame: BLEND_FRAMES,               // BLEND_FRAMES = steady (no transition)
+      inOffsetX:  0,
+      inOffsetY:  0,
     }
   }
 
-  // New palette → snapshot current state, set target, pick direction, reset counter
+  // New palette → snapshot current visual as Layer A, set Layer B target + direction
   useEffect(() => {
     if (isFirst.current) { isFirst.current = false; return }
     const s = st.current
-    s.startRgb   = s.currentRgb.map(c => [...c])
-    s.targetRgb  = parseColors(colors, NUM_CIRCLES)
+
+    if (s.blendFrame < BLEND_FRAMES) {
+      // Interrupted mid-transition: blend current A+B state into new Layer A
+      const t = easeInOut(s.blendFrame / BLEND_FRAMES)
+      s.outRgb = s.outRgb.map((c, i) => [
+        lerp(c[0], s.inRgb[i][0], t),
+        lerp(c[1], s.inRgb[i][1], t),
+        lerp(c[2], s.inRgb[i][2], t),
+      ])
+    } else {
+      s.outRgb = s.steadyRgb.map(c => [...c])
+    }
+
+    s.inRgb      = parseColors(colors, NUM_CIRCLES)
     s.blendFrame = 0
-    const dir = DIRECTIONS[Math.floor(Math.random() * DIRECTIONS.length)]
-    s.startOffsetX = dir === 'left' ? -1.2 : dir === 'right' ?  1.2 : 0
-    s.startOffsetY = dir === 'up'   ? -1.2 : dir === 'down'  ?  1.2 : 0
+
+    const dir   = DIRECTIONS[Math.floor(Math.random() * DIRECTIONS.length)]
+    s.inOffsetX = dir === 'left' ? -1.2 : dir === 'right' ?  1.2 : 0
+    s.inOffsetY = dir === 'up'   ? -1.2 : dir === 'down'  ?  1.2 : 0
   }, [colors])
 
   // Keep active ref in sync; restart loop if it was paused
@@ -99,12 +112,34 @@ export default function AlbumGradient({ colors = [], active = true }) {
     const ctx = canvas.getContext('2d')
 
     function resize() {
-      const p = canvas.parentElement
+      const p    = canvas.parentElement
       canvas.width  = (p ? p.clientWidth  : 0) || window.innerWidth
       canvas.height = (p ? p.clientHeight : 0) || window.innerHeight
     }
     resize()
     window.addEventListener('resize', resize)
+
+    // Draws one circle layer — skips entirely when alpha is at or below zero
+    function paintLayer(rgbArr, tSec, W, H, maxDim, ox, oy, alpha) {
+      if (alpha <= 0) return
+      for (let i = 0; i < NUM_CIRCLES; i++) {
+        const p  = circleParams[i]
+        const cx = (p.baseX + p.xAmp * Math.sin(tSec * p.xFreq * Math.PI * 2 + p.xPhase)) * W + ox
+        const cy = (p.baseY + p.yAmp * Math.sin(tSec * p.yFreq * Math.PI * 2 + p.yPhase)) * H + oy
+        const r  = p.radius * maxDim
+        const [R, G, B] = rgbArr[i]
+        const a  = alpha.toFixed(3)
+
+        const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r)
+        grad.addColorStop(0, `rgba(${R|0},${G|0},${B|0},${a})`)
+        grad.addColorStop(1, `rgba(${R|0},${G|0},${B|0},0)`)
+
+        ctx.fillStyle = grad
+        ctx.beginPath()
+        ctx.arc(cx, cy, r, 0, Math.PI * 2)
+        ctx.fill()
+      }
+    }
 
     function draw(ts) {
       const W = canvas.width
@@ -115,49 +150,34 @@ export default function AlbumGradient({ colors = [], active = true }) {
       const tSec   = ts / 1000
       const s      = st.current
 
-      // Advance blend counter and compute eased progress
-      if (s.blendFrame < BLEND_FRAMES) s.blendFrame++
-      const t = easeInOut(s.blendFrame / BLEND_FRAMES)
-
-      // Interpolate each RGB channel from start toward target
-      for (let i = 0; i < NUM_CIRCLES; i++) {
-        for (let c = 0; c < 3; c++) {
-          s.currentRgb[i][c] = lerp(s.startRgb[i][c], s.targetRgb[i][c], t)
-        }
-      }
-      // Snap once fully blended so future frames skip the lerp
-      if (s.blendFrame >= BLEND_FRAMES) {
-        for (let i = 0; i < NUM_CIRCLES; i++) s.currentRgb[i] = [...s.targetRgb[i]]
-      }
-
-      // Directional offset eases from startOffset → 0 over the same window
-      const offsetFrac = 1 - t
-      const ox = s.startOffsetX * offsetFrac * W
-      const oy = s.startOffsetY * offsetFrac * H
-
       // Near-black base
       ctx.globalCompositeOperation = 'source-over'
       ctx.fillStyle = '#080808'
       ctx.fillRect(0, 0, W, H)
 
-      // Additive blobs — colors combine like light
       ctx.globalCompositeOperation = 'screen'
-      for (let i = 0; i < NUM_CIRCLES; i++) {
-        const p  = circleParams[i]
-        const cx = (p.baseX + p.xAmp * Math.sin(tSec * p.xFreq * Math.PI * 2 + p.xPhase)) * W + ox
-        const cy = (p.baseY + p.yAmp * Math.sin(tSec * p.yFreq * Math.PI * 2 + p.yPhase)) * H + oy
-        const r  = p.radius * maxDim
-        const [R, G, B] = s.currentRgb[i]
-        const Ri = R | 0, Gi = G | 0, Bi = B | 0
 
-        const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r)
-        grad.addColorStop(0, `rgba(${Ri},${Gi},${Bi},0.9)`)
-        grad.addColorStop(1, `rgba(${Ri},${Gi},${Bi},0)`)
+      if (s.blendFrame < BLEND_FRAMES) {
+        // ── Transition: two layers crossfade while Layer B sweeps in ──────────
+        if (s.blendFrame < BLEND_FRAMES) s.blendFrame++
+        const t          = easeInOut(s.blendFrame / BLEND_FRAMES)
+        const offsetFrac = 1 - t
+        const ox         = s.inOffsetX * offsetFrac * W
+        const oy         = s.inOffsetY * offsetFrac * H
 
-        ctx.fillStyle = grad
-        ctx.beginPath()
-        ctx.arc(cx, cy, r, 0, Math.PI * 2)
-        ctx.fill()
+        // Layer A — outgoing, natural positions, fades out
+        paintLayer(s.outRgb, tSec, W, H, maxDim, 0, 0, 0.9 * (1 - t))
+
+        // Layer B — incoming, sweeps in from edge, fades in
+        paintLayer(s.inRgb, tSec, W, H, maxDim, ox, oy, 0.9 * t)
+
+        // Promote B to steady state once fully blended
+        if (s.blendFrame >= BLEND_FRAMES) {
+          s.steadyRgb = s.inRgb.map(c => [...c])
+        }
+      } else {
+        // ── Steady state: single layer at full alpha ───────────────────────────
+        paintLayer(s.steadyRgb, tSec, W, H, maxDim, 0, 0, 0.9)
       }
     }
 
@@ -170,7 +190,6 @@ export default function AlbumGradient({ colors = [], active = true }) {
       }
     }
 
-    // Exposed so the active effect can restart after a pause
     tickRef.current = () => { rafRef.current = requestAnimationFrame(tick) }
 
     if (activeRef.current) {
