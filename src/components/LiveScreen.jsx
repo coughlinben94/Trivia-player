@@ -163,15 +163,17 @@ export default function LiveScreen({ currentTrack, isPaused, ending, onClose, ne
     if (!ending) return
     busyRef.current = true
     setTransitioning(true)
-    let t2, t3
+    let t2, t3, t4
     const t1 = setTimeout(() => {
       tonearmCtrl.start({ ...ARM_OFF, transition: { type: 'spring', stiffness: 80, damping: 20 } })
-      flyCtrl.start({ y: -500, transition: { type: 'spring', stiffness: 220, damping: 22 } })
-      setArtOpacity(0)
-      t2 = setTimeout(() => setClosing(true), 900)
-      t3 = setTimeout(onClose, 1100)
+      t2 = setTimeout(() => {
+        flyCtrl.start({ y: -500, transition: { type: 'spring', stiffness: 220, damping: 22 } })
+        setArtOpacity(0)
+      }, 750)
+      t3 = setTimeout(() => setClosing(true), 1650)
+      t4 = setTimeout(onClose, 1850)
     }, 400)
-    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3) }
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4) }
   }, [ending])
 
   // Hide text immediately when a new track arrives — instant (no fade) before runTransition fires
