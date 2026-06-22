@@ -58,7 +58,7 @@ export default function Player({ player, isPlaying, onPlay, onStop, onSkip, libr
           {isPlaying && (
             <button
               onClick={onSkip}
-              className="text-white hover:text-white transition-all duration-150 cursor-pointer active:scale-[0.92]"
+              className="text-white hover:text-white transition-transform duration-150 cursor-pointer active:scale-[0.97]"
               aria-label="Skip"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">

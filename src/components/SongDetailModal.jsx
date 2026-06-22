@@ -174,7 +174,7 @@ export default function SongDetailModal({ track, player, onUpdateTimes, onClose 
 
   return (
     <div
-      className="fixed inset-0 z-40 flex items-end sm:items-center justify-center p-0 sm:p-6 bg-black/75 backdrop-blur-sm"
+      className="fixed inset-0 z-40 flex items-end sm:items-center justify-center p-0 sm:p-6 bg-black/75 backdrop-blur-sm animate-fade-in"
       onClick={handleClose}
     >
       <div
@@ -200,7 +200,7 @@ export default function SongDetailModal({ track, player, onUpdateTimes, onClose 
           )}
           <button
             onClick={handleClose}
-            className="absolute top-3 right-3 w-7 h-7 rounded-full bg-black/60 text-white hover:text-white flex items-center justify-center transition-colors duration-150 cursor-pointer"
+            className="absolute top-3 right-3 w-7 h-7 rounded-full bg-black/60 text-white hover:text-white flex items-center justify-center transition-[transform,color] duration-150 active:scale-[0.97] cursor-pointer"
           >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
               <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>

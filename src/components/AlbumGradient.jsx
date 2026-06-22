@@ -49,7 +49,7 @@ function makeCircleParams() {
 
 // ── Component ──────────────────────────────────────────────────────────────────
 
-export default function AlbumGradient({ colors = [], nextColors = [], active = true }) {
+export default function AlbumGradient({ colors = [], nextColors = [], active = true, shuffleKey = 0 }) {
   const canvasRef         = useRef(null)
   const activeRef         = useRef(active)
   const mountedRef        = useRef(true)
@@ -57,6 +57,7 @@ export default function AlbumGradient({ colors = [], nextColors = [], active = t
   const tickRef           = useRef(null)
   const isFirst           = useRef(true)
   const isFirstNext       = useRef(true)
+  const isFirstKey        = useRef(true)
   const pendingFromNextRef = useRef(false)
   const circleParams      = useMemo(makeCircleParams, [])
 
@@ -93,6 +94,18 @@ export default function AlbumGradient({ colors = [], nextColors = [], active = t
     s.inOffsetX = dir === 'left' ? -1.2 : dir === 'right' ?  1.2 : 0
     s.inOffsetY = dir === 'up'   ? -1.2 : dir === 'down'  ?  1.2 : 0
   }
+
+  // shuffleKey: new session starts — snap everything to black so palette bleeds in fresh
+  useEffect(() => {
+    if (isFirstKey.current) { isFirstKey.current = false; return }
+    const s     = st.current
+    const black = Array.from({ length: NUM_CIRCLES }, () => [8, 8, 8])
+    s.outRgb    = black.map(c => [...c])
+    s.inRgb     = black.map(c => [...c])
+    s.steadyRgb = black.map(c => [...c])
+    s.blendFrame = BLEND_FRAMES
+    pendingFromNextRef.current = false
+  }, [shuffleKey])
 
   // nextColors: pre-transition 1 second before the song officially switches
   useEffect(() => {

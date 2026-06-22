@@ -43,7 +43,7 @@ function Tonearm({ controls }) {
 }
 
 // ── LiveScreen ─────────────────────────────────────────────────────────────────
-export default function LiveScreen({ currentTrack, isPaused, ending, onClose, nextArtUrl }) {
+export default function LiveScreen({ currentTrack, isPaused, ending, onClose, nextArtUrl, shuffleKey }) {
   const [shown, setShown]                 = useState(currentTrack)
   const [prev,  setPrev]                  = useState(null)
   const [transitioning, setTransitioning] = useState(false)
@@ -222,7 +222,7 @@ export default function LiveScreen({ currentTrack, isPaused, ending, onClose, ne
   return (
     <div className="fixed inset-0 bg-black z-50 overflow-hidden flex flex-col items-center justify-start">
 
-      <AlbumGradient colors={paletteColors} nextColors={nextPaletteColors} active={!isPaused} />
+      <AlbumGradient colors={paletteColors} nextColors={nextPaletteColors} active={!isPaused} shuffleKey={shuffleKey} />
 
       <div className="relative z-10 flex flex-col items-center gap-8 px-10 text-center max-w-lg w-full" style={{ paddingTop: '20vh' }}>
         {shown ? (

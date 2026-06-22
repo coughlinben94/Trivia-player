@@ -44,6 +44,7 @@ export default function Jukebox({ onLogout }) {
   const [renamingId, setRenamingId] = useState(null)
   const [renamingVal, setRenamingVal] = useState('')
   const [nextSong, setNextSong] = useState(null)
+  const [shuffleKey, setShuffleKey] = useState(0)
 
   const library = sets.items[sets.activeId]?.songs ?? []
   const activeSetName = sets.items[sets.activeId]?.name ?? 'Library'
@@ -147,6 +148,7 @@ export default function Jukebox({ onLogout }) {
   const startShuffle = useCallback(async () => {
     console.log('🔵 startShuffle CALLED — library.length:', library.length)
     if (library.length === 0) return
+    setShuffleKey(k => k + 1)
     const order = shuffleArray(library.map((_, i) => i))
     shuffleOrderRef.current = order
     shuffleIdxRef.current = 0
@@ -264,7 +266,7 @@ export default function Jukebox({ onLogout }) {
           {isPlaying && (
             <button
               onClick={() => setShowLive(v => !v)}
-              className={`text-xs font-medium transition-all duration-150 cursor-pointer px-3 py-1 rounded-full active:scale-[0.97] ${
+              className={`text-xs font-medium transition-colors duration-150 cursor-pointer px-3 py-1 rounded-full active:scale-[0.97] ${
                 showLive ? 'bg-white text-black' : 'text-white hover:text-white border border-white/10 hover:border-white/25'
               }`}
             >
@@ -308,7 +310,7 @@ export default function Jukebox({ onLogout }) {
             ) : (
               <button
                 onClick={() => setAddingSet(true)}
-                className="w-full text-[11px] font-semibold text-[#1DB954] border border-[#1DB954]/30 hover:border-[#1DB954]/60 hover:bg-[#1DB954]/[0.07] transition-all duration-150 cursor-pointer px-2 py-2 rounded-lg flex items-center justify-center gap-1.5 active:scale-[0.97]"
+                className="w-full text-[11px] font-semibold text-[#1DB954] border border-[#1DB954]/30 hover:border-[#1DB954]/60 hover:bg-[#1DB954]/[0.07] transition-colors duration-150 cursor-pointer px-2 py-2 rounded-lg flex items-center justify-center gap-1.5 active:scale-[0.97]"
               >
                 <span className="text-sm leading-none">+</span>
                 <span>Add Theme</span>
@@ -390,7 +392,7 @@ export default function Jukebox({ onLogout }) {
                 placeholder="Search for a song…"
                 value={query}
                 onChange={e => { setQuery(e.target.value); search(e.target.value) }}
-                className="w-full bg-white/[0.04] border border-white/[0.06] rounded-xl pl-9 pr-4 py-2.5 text-white placeholder-white/20 outline-none focus:border-[#1DB954]/35 focus:bg-white/[0.06] transition-all duration-200 text-sm"
+                className="w-full bg-white/[0.04] border border-white/[0.06] rounded-xl pl-9 pr-4 py-2.5 text-white placeholder-white/20 outline-none focus:border-[#1DB954]/35 focus:bg-white/[0.06] transition-colors duration-200 text-sm"
               />
               {searching && (
                 <div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -434,6 +436,7 @@ export default function Jukebox({ onLogout }) {
           ending={liveEnding}
           onClose={() => { setShowLive(false); setLiveEnding(false) }}
           nextArtUrl={nextSong?.album?.images?.[0]?.url ?? null}
+          shuffleKey={shuffleKey}
         />
       )}
 
@@ -462,7 +465,7 @@ export default function Jukebox({ onLogout }) {
 
 function SetItem({ id, set, isActive, isRenaming, renamingVal, onSelect, onDelete, onClear, onStartRename, onRenameChange, onRenameCommit, onRenameCancel }) {
   return (
-    <div className={`group flex items-center rounded-lg px-2 py-1.5 transition-all duration-150 ${
+    <div className={`group flex items-center rounded-lg px-2 py-1.5 transition-colors duration-150 ${
       isActive ? 'bg-white/[0.08] text-white' : 'text-white hover:text-white hover:bg-white/[0.04]'
     }`}>
       {isRenaming ? (
@@ -491,7 +494,7 @@ function SetItem({ id, set, isActive, isRenaming, renamingVal, onSelect, onDelet
         </button>
       )}
       {!isRenaming && (
-        <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 ml-1 flex-shrink-0 transition-all duration-150">
+        <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 ml-1 flex-shrink-0 transition-opacity duration-150">
           {onClear && set.songs?.length > 0 && (
             <button
               onClick={e => { e.stopPropagation(); onClear() }}
@@ -535,7 +538,7 @@ function TrackRow({ track, index, inLibrary, onAdd }) {
       <button
         onClick={() => onAdd(track)}
         disabled={inLibrary}
-        className={`flex-shrink-0 text-[10px] font-semibold px-2.5 py-1 rounded-full transition-all duration-150 cursor-pointer active:scale-[0.97] ${
+        className={`flex-shrink-0 text-[10px] font-semibold px-2.5 py-1 rounded-full transition-colors duration-150 cursor-pointer active:scale-[0.97] ${
           inLibrary
             ? 'text-[#1DB954]/40 bg-[#1DB954]/[0.07] cursor-default'
             : 'text-[#1DB954] bg-[#1DB954]/[0.1] hover:bg-[#1DB954]/[0.18]'
@@ -553,7 +556,7 @@ function LibraryCard({ track, isPlaying, isPaused, onRemove, onClick, onDragStar
   const hasTrim = track.startMs > 0 || (track.stopMs && track.stopMs < track.duration_ms - 1000)
   return (
     <div
-      className={`relative group rounded-xl overflow-hidden transition-all duration-200 cursor-pointer select-none ${
+      className={`relative group rounded-xl overflow-hidden transition-shadow duration-200 cursor-pointer select-none ${
         isPlaying ? 'ring-1 ring-[#1DB954]/40' : isPaused ? 'ring-1 ring-white/15' : ''
       }`}
       draggable
@@ -587,7 +590,7 @@ function LibraryCard({ track, isPlaying, isPaused, onRemove, onClick, onDragStar
         )}
         <button
           onClick={e => { e.stopPropagation(); onRemove() }}
-          className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-black/70 text-white hover:text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-150 cursor-pointer text-[10px]"
+          className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-black/70 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-150 cursor-pointer text-[10px]"
         >✕</button>
       </div>
       <div className="p-2 bg-white/[0.03] text-center">

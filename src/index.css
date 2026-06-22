@@ -36,6 +36,10 @@
   animation: fade-up 200ms var(--ease-out) both;
 }
 
+.animate-fade-in {
+  animation: fade-in 200ms var(--ease-out) both;
+}
+
 .animate-slide-in {
   animation: slide-in-right 200ms var(--ease-out) both;
 }
