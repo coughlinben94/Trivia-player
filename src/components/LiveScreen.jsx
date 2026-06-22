@@ -243,16 +243,16 @@ export default function LiveScreen({ currentTrack, isPaused, ending, onClose }) 
           key={artUrl}
           className="absolute inset-0 live-bg-in"
           style={{
-            background: `radial-gradient(ellipse at 20% 50%, rgba(${palette[0]},0.6) 0%, transparent 60%),
-                         radial-gradient(ellipse at 80% 20%, rgba(${palette[1]},0.55) 0%, transparent 55%),
-                         radial-gradient(ellipse at 60% 80%, rgba(${palette[2]},0.5) 0%, transparent 50%),
-                         radial-gradient(ellipse at 40% 30%, rgba(${palette[3]},0.45) 0%, transparent 45%),
+            background: `radial-gradient(ellipse at 20% 50%, rgba(${palette[0]},1.0) 0%, transparent 60%),
+                         radial-gradient(ellipse at 80% 20%, rgba(${palette[1]},1.0) 0%, transparent 55%),
+                         radial-gradient(ellipse at 60% 80%, rgba(${palette[2]},1.0) 0%, transparent 50%),
+                         radial-gradient(ellipse at 40% 30%, rgba(${palette[3]},1.0) 0%, transparent 45%),
                          #0a0a0a`,
             animation: 'live-bg-in 2s linear, palette-breathe 8s ease-in-out infinite',
           }}
         />
       )}
-      <div className="absolute inset-0 bg-black/10" />
+      <div className="absolute inset-0 bg-black/0" />
 
       <div className="relative z-10 flex flex-col items-center gap-8 px-10 text-center max-w-lg w-full" style={{ paddingTop: '20vh' }}>
         {shown ? (
