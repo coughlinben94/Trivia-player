@@ -42,7 +42,7 @@ const [newSetName, setNewSetName] = useState('')
   const [addingSet, setAddingSet] = useState(false)
   const [renamingId, setRenamingId] = useState(null)
   const [renamingVal, setRenamingVal] = useState('')
-  const [nextSong, setNextSong] = useState(null)
+  const [confirmClear, setConfirmClear] = useState(false)
   const [shuffleKey, setShuffleKey] = useState(0)
 
   const library = sets.items[sets.activeId]?.songs ?? []
@@ -63,8 +63,10 @@ const [newSetName, setNewSetName] = useState('')
   const shuffleOrderRef = useRef([])
   const shuffleIdxRef = useRef(0)
   const debounceRef = useRef(null)
+  const shuffleDebounceRef = useRef(null)
   const playTrackFn = useRef(null)
   const onUpcomingTrackRef = useRef(null)
+  const pendingUriRef = useRef(null)
   const dragIdxRef = useRef(null)
   // Set true by startShuffle; consumed by the currentTrack watcher to open the live screen
   // only after the SDK has confirmed the track — avoids the race that caused missing art
@@ -88,7 +90,6 @@ const [newSetName, setNewSetName] = useState('')
       idx = 0
     }
     shuffleIdxRef.current = idx
-    setNextSong(lib[shuffleOrderRef.current[idx + 1]] ?? null)
     const song = lib[shuffleOrderRef.current[idx]]
     if (song) { setPlayingId(song.id); playTrackFn.current?.(song) }
   }, [])
@@ -117,8 +118,11 @@ const [newSetName, setNewSetName] = useState('')
       const match = library.find(t => t.uri === player.currentTrack.uri)
       if (match) setPlayingId(match.id)
       if (pendingLiveOpenRef.current) {
-        pendingLiveOpenRef.current = false
-        setShowLive(true)
+        if (player.currentTrack.uri === pendingUriRef.current) {
+          pendingLiveOpenRef.current = false
+          pendingUriRef.current = null
+          setShowLive(true)
+        }
       }
     }
   }, [player.currentTrack?.uri])
@@ -153,24 +157,28 @@ const [newSetName, setNewSetName] = useState('')
     setLibrary(prev => prev.map(t => t.id === id ? { ...t, startMs, stopMs } : t))
   }, [setLibrary])
 
-  const startShuffle = useCallback(async () => {
-    if (library.length === 0) return
-    setShuffleKey(k => k + 1)
-    const order = shuffleArray(library.map((_, i) => i))
-    shuffleOrderRef.current = order
-    shuffleIdxRef.current = 0
-    setNextSong(library[order[1]] ?? null)
-    const song = library[order[0]]
-    setPlayingId(song.id)
-    setIsPlaying(true)
-    pendingLiveOpenRef.current = true   // live screen opens when SDK confirms the track
-    const started = await playTrackFn.current?.(song)
-    if (!started) {
-      pendingLiveOpenRef.current = false
-      setIsPlaying(false)
-      setShowLive(false)
-      setPlayingId(null)
-    }
+  const startShuffle = useCallback(() => {
+    clearTimeout(shuffleDebounceRef.current)
+    shuffleDebounceRef.current = setTimeout(async () => {
+      if (library.length === 0) return
+      setShuffleKey(k => k + 1)
+      const order = shuffleArray(library.map((_, i) => i))
+      shuffleOrderRef.current = order
+      shuffleIdxRef.current = 0
+      const song = library[order[0]]
+      setPlayingId(song.id)
+      setIsPlaying(true)
+      pendingLiveOpenRef.current = true
+      pendingUriRef.current = song.uri
+      const started = await playTrackFn.current?.(song)
+      if (!started) {
+        pendingLiveOpenRef.current = false
+        pendingUriRef.current = null
+        setIsPlaying(false)
+        setShowLive(false)
+        setPlayingId(null)
+      }
+    }, 400)
   }, [library])
 
   const handleStop = useCallback(() => {
@@ -441,7 +449,6 @@ const [newSetName, setNewSetName] = useState('')
           isPaused={player.isPaused}
           ending={liveEnding}
           onClose={() => { setShowLive(false); setLiveEnding(false) }}
-          nextArtUrl={nextSong?.album?.images?.[0]?.url ?? null}
           shuffleKey={shuffleKey}
           onUpcomingTrack={registerUpcomingTrackHandler}
         />

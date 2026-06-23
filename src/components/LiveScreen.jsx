@@ -44,7 +44,7 @@ function Tonearm({ controls }) {
 }
 
 // ── LiveScreen ─────────────────────────────────────────────────────────────────
-export default function LiveScreen({ currentTrack, isPaused, ending, onClose, nextArtUrl, shuffleKey, onUpcomingTrack }) {
+export default function LiveScreen({ currentTrack, isPaused, ending, onClose, shuffleKey, onUpcomingTrack }) {
   const [shown, setShown]                 = useState(currentTrack)
   const [prev,  setPrev]                  = useState(null)
   const [transitioning, setTransitioning] = useState(false)
@@ -68,6 +68,7 @@ export default function LiveScreen({ currentTrack, isPaused, ending, onClose, ne
   const pauseSeqRef  = useRef([])
   // Always-current isPaused so async functions don't read a stale closure value
   const isPausedRef = useRef(isPaused)
+  const runTransitionRef = useRef(null)
   useEffect(() => { isPausedRef.current = isPaused }, [isPaused])
 
   // Register palette-prefetch handler with Jukebox so advanceToNext can notify us
@@ -114,6 +115,12 @@ export default function LiveScreen({ currentTrack, isPaused, ending, onClose, ne
         ...(isPausedRef.current ? ARM_OFF : ARM_ON),
         transition: { type: 'spring', stiffness: 180, damping: 26 },
       })
+
+      if (pendingRef.current && pendingRef.current.uri !== shown?.uri) {
+        const pending = pendingRef.current
+        pendingRef.current = null
+        runTransitionRef.current?.(pending)
+      }
     }
 
     runEntrance()
@@ -252,9 +259,6 @@ export default function LiveScreen({ currentTrack, isPaused, ending, onClose, ne
         // Let the re-sync animation start before any recursive call fires ARM_OFF
         await new Promise(r => setTimeout(r, 50))
 
-        // Clear upcoming palette — prevents stale colors bleeding through between songs
-        setUpcomingArtUrl(null)
-
         // Drain any skip that arrived mid-transition
         if (pendingRef.current && pendingRef.current.uri !== target.uri) {
           const pending = pendingRef.current
@@ -269,6 +273,7 @@ export default function LiveScreen({ currentTrack, isPaused, ending, onClose, ne
       }
     }
 
+    runTransitionRef.current = runTransition
     runTransition(currentTrack)
   }, [currentTrack?.uri])
 

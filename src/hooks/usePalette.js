@@ -20,6 +20,7 @@ export function usePalette(albumArtUrl) {
     if (abortRef.current) abortRef.current.abort();
     const controller = new AbortController();
     abortRef.current = controller;
+    setColors(FALLBACK);
 
     fetch(`/api/palette?url=${encodeURIComponent(albumArtUrl)}`, {
       signal: controller.signal,

@@ -25,6 +25,7 @@ export function useSpotifyPlayer({ onAdvance, onFadeStart } = {}) {
   const onFadeStartRef = useRef(onFadeStart)
   // Suppresses the transient isPaused=true the SDK emits during auto-advance
   const transitioningRef = useRef(false)
+  const fadingRef = useRef(false)
 
   useEffect(() => { onAdvanceRef.current = onAdvance }, [onAdvance])
   useEffect(() => { onFadeStartRef.current = onFadeStart }, [onFadeStart])
@@ -84,14 +85,16 @@ export function useSpotifyPlayer({ onAdvance, onFadeStart } = {}) {
   const fadeVolume = async (from, to, gen) => {
     const player = playerRef.current
     if (!player) return
+    fadingRef.current = true
     const steps = FADE_STEPS
     const stepMs = FADE_MS / steps
-    for (let i = 0; i <= steps; i++) {
-      if (genRef.current !== gen) return
+    for (let i = 0; i < steps; i++) {
+      if (genRef.current !== gen) { fadingRef.current = false; return }
       const v = from + (to - from) * (i / steps)
       player.setVolume(Math.max(0, Math.min(1, v)))
       await sleep(stepMs)
     }
+    fadingRef.current = false
   }
 
   // ─── Position monitor ────────────────────────────────────────────
@@ -263,7 +266,7 @@ export function useSpotifyPlayer({ onAdvance, onFadeStart } = {}) {
   const setVolume = useCallback((v) => {
     maxVolumeRef.current = v
     setVolumeState(v)
-    // Only set directly if currently playing (not mid-fade)
+    if (fadingRef.current) return
     playerRef.current?.setVolume(v)
   }, [])
 
