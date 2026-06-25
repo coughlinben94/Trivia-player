@@ -336,7 +336,7 @@ export default function LiveScreen({ currentTrack, isPaused, ending, onClose, sh
 
       <AlbumGradient colors={paletteColors} nextColors={upcomingPaletteColors} active={!isPaused || transitioning} shuffleKey={shuffleKey} entranceActive={entranceActive} />
 
-      <div className="relative z-10 flex flex-col items-center gap-8 px-10 text-center max-w-lg w-full" style={{ paddingTop: '20vh' }}>
+      <div className="relative z-10 flex flex-col items-center gap-8 px-10 text-center max-w-lg w-full" style={{ paddingTop: '15vh' }}>
         {shown ? (
           <>
             {/* Record + tonearm scene */}
