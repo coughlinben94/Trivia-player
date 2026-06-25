@@ -97,7 +97,7 @@ function SetMarkerButton({ label, position, savedMs, onClick }) {
   )
 }
 
-export default function SongDetailModal({ track, player, onUpdateTimes, onClose }) {
+export default function SongDetailModal({ track, player, onUpdateTimes, onClose, moveOrCopySong, sets, activeId }) {
   const { position, duration, seek, playTrack, fadeAndPause, currentTrack, isPaused } = player
 
   const isActive = currentTrack?.uri === track.uri
@@ -105,8 +105,12 @@ export default function SongDetailModal({ track, player, onUpdateTimes, onClose 
 
   const displayDuration = isActive && duration > 0 ? duration : (track.duration_ms || 0)
   const [localPos, setLocalPos] = useState(track.startMs ?? 0)
-  const [dragMs, setDragMs]     = useState(null)
-  const draggingRef             = useRef(false)
+  const [dragMs, setDragMs]         = useState(null)
+  const draggingRef                 = useRef(false)
+  const [moveCopyOpen, setMoveCopyOpen] = useState(false)
+  const [selectedMode, setSelectedMode] = useState('move')
+  const [confirmMsg, setConfirmMsg]     = useState(null)
+  const otherSets = Object.entries(sets?.items ?? {}).filter(([id]) => id !== activeId)
   const displayPosition = draggingRef.current || dragMs !== null
     ? dragMs
     : (isActive ? position : localPos)
@@ -144,6 +148,16 @@ export default function SongDetailModal({ track, player, onUpdateTimes, onClose 
     setStopMs(ms)
     stopMsRef.current = ms
     onUpdateTimes(track.id, startMsRef.current, ms)
+  }
+
+  const handleMoveOrCopy = (destSetId, destSetName) => {
+    moveOrCopySong(track.id, destSetId, selectedMode)
+    setConfirmMsg(`${selectedMode === 'move' ? 'Moved' : 'Copied'} to ${destSetName}`)
+    if (selectedMode === 'move') {
+      setTimeout(() => { setMoveCopyOpen(false); handleCloseRef.current() }, 900)
+    } else {
+      setTimeout(() => { setMoveCopyOpen(false); setConfirmMsg(null) }, 900)
+    }
   }
 
   // Reset: clear clip and immediately save
@@ -289,6 +303,51 @@ export default function SongDetailModal({ track, player, onUpdateTimes, onClose 
             </div>
             <TimeField label="Out" value={stopMs}  maxMs={displayDuration} onChange={v => { setStopMs(v);  stopMsRef.current  = v }} />
           </div>
+
+          {/* Move / Copy to another library */}
+          <button
+            onClick={() => { setMoveCopyOpen(v => !v); setConfirmMsg(null) }}
+            style={{ transition: 'transform 160ms cubic-bezier(0.23,1,0.32,1)' }}
+            className="w-full py-2.5 mb-3 bg-white/[0.05] hover:bg-white/[0.09] text-white text-xs font-semibold rounded-xl cursor-pointer active:scale-[0.97]"
+          >
+            {moveCopyOpen ? 'Cancel' : 'Move / Copy to library…'}
+          </button>
+
+          {moveCopyOpen && (
+            <div className="mb-3 rounded-xl bg-white/[0.04] border border-white/[0.07] overflow-hidden">
+              <div className="flex border-b border-white/[0.07]">
+                {['move', 'copy'].map(m => (
+                  <button
+                    key={m}
+                    onClick={() => setSelectedMode(m)}
+                    className={`flex-1 py-2 text-xs font-semibold transition-colors duration-150 cursor-pointer ${
+                      selectedMode === m ? 'bg-[#1DB954]/15 text-[#1DB954]' : 'text-white hover:bg-white/[0.05]'
+                    }`}
+                  >
+                    {m === 'move' ? 'Move' : 'Copy'}
+                  </button>
+                ))}
+              </div>
+              {confirmMsg ? (
+                <p className="text-xs text-[#1DB954] text-center py-4 font-medium">{confirmMsg}</p>
+              ) : otherSets.length === 0 ? (
+                <p className="text-xs text-white text-center py-4">No other libraries — create one first</p>
+              ) : (
+                <div>
+                  {otherSets.map(([id, set]) => (
+                    <button
+                      key={id}
+                      onClick={() => handleMoveOrCopy(id, set.name)}
+                      className="w-full text-left px-4 py-2.5 text-xs font-medium text-white hover:bg-white/[0.06] transition-colors duration-150 cursor-pointer border-b border-white/[0.04] last:border-0"
+                    >
+                      {set.name}
+                      <span className="ml-2 text-[9px] text-white/40">{set.songs?.length ?? 0} songs</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           <button
             onClick={handleClose}

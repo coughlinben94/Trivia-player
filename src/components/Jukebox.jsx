@@ -156,6 +156,24 @@ const [newSetName, setNewSetName] = useState('')
     setLibrary(prev => prev.map(t => t.id === id ? { ...t, startMs, stopMs } : t))
   }, [setLibrary])
 
+  const moveOrCopySong = useCallback((songId, destSetId, mode) => {
+    setSets(prev => {
+      const activeSongs = prev.items[prev.activeId]?.songs ?? []
+      const song = activeSongs.find(t => t.id === songId)
+      if (!song) return prev
+      const destSongs = prev.items[destSetId]?.songs ?? []
+      if (destSongs.some(t => t.id === songId)) return prev
+      const newItems = {
+        ...prev.items,
+        [destSetId]: { ...prev.items[destSetId], songs: [{ ...song }, ...destSongs] },
+      }
+      if (mode === 'move') {
+        newItems[prev.activeId] = { ...prev.items[prev.activeId], songs: activeSongs.filter(t => t.id !== songId) }
+      }
+      return { ...prev, items: newItems }
+    })
+  }, [])
+
   const startShuffle = useCallback(() => {
     clearTimeout(shuffleDebounceRef.current)
     shuffleDebounceRef.current = setTimeout(async () => {
@@ -459,6 +477,9 @@ const [newSetName, setNewSetName] = useState('')
           player={player}
           onUpdateTimes={updateTimes}
           onClose={() => setModalTrack(null)}
+          moveOrCopySong={moveOrCopySong}
+          sets={sets}
+          activeId={sets.activeId}
         />
       )}
 
