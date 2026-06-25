@@ -170,7 +170,7 @@ export default function AlbumGradient({ colors = [], nextColors = [], active = t
 
     function resize() {
       const p     = canvas.parentElement
-      const SCALE = 0.5
+      const SCALE = 1
       canvas.width  = Math.round(((p ? p.clientWidth  : 0) || window.innerWidth)  * SCALE)
       canvas.height = Math.round(((p ? p.clientHeight : 0) || window.innerHeight) * SCALE)
     }
