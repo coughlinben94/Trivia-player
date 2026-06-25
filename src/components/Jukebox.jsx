@@ -263,20 +263,16 @@ const [newSetName, setNewSetName] = useState('')
     return () => window.removeEventListener('keydown', handler)
   }, [isPlaying, handleStop, startShuffle, modalTrack])
 
-  // Stream Deck duck controls — discrete keypresses, no hold required.
-  // 'd' = Stream Deck "Duck" button   → lowers music to 20%
-  // 'f' = Stream Deck "Restore" button → restores music to full volume
   useEffect(() => {
     const onDown = (e) => {
       if (e.repeat) return
       if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return
       if (e.target.isContentEditable) return
-      if (e.key === 'd') player.duck()
-      else if (e.key === 'f') player.unduck()
+      if (e.key === 'b') window.location.href = 'https://trivia-os.vercel.app/display?from=jukebox'
     }
     window.addEventListener('keydown', onDown)
     return () => window.removeEventListener('keydown', onDown)
-  }, [player.duck, player.unduck])
+  }, [])
 
   const handleDragStart = (i) => { dragIdxRef.current = i }
   const handleDragOver = (e, i) => {
