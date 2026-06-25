@@ -60,6 +60,10 @@ export default function AlbumGradient({ colors = [], nextColors = [], active = t
   const isFirstKey        = useRef(true)
   const pendingFromNextRef = useRef(false)
   const circleParams      = useMemo(makeCircleParams, [])
+  // Cached CanvasGradient objects for the steady-state draw path.
+  // Gradients are created at origin (0,0); ctx.setTransform repositions them each frame.
+  // { maxDim: number, entries: Array<{ grad: CanvasGradient, r: number }> } | null
+  const gradCacheRef      = useRef(null)
 
   // All mutable animation state in one ref
   const st = useRef(null)
@@ -110,6 +114,7 @@ export default function AlbumGradient({ colors = [], nextColors = [], active = t
     s.steadyRgb = black.map(c => [...c])
     s.blendStart = -1
     pendingFromNextRef.current = false
+    gradCacheRef.current = null
   }, [shuffleKey])
 
   // nextColors: pre-transition 1 second before the song officially switches
@@ -129,6 +134,7 @@ export default function AlbumGradient({ colors = [], nextColors = [], active = t
       const s = st.current
       s.inRgb     = parseColors(colors, NUM_CIRCLES)
       s.steadyRgb = parseColors(colors, NUM_CIRCLES)
+      gradCacheRef.current = null
     } else {
       startBlendTo(colors)
     }
@@ -213,8 +219,37 @@ export default function AlbumGradient({ colors = [], nextColors = [], active = t
           // First frame after blend ends: promote B to steady and clear the timer
           s.steadyRgb = s.inRgb.map(c => [...c])
           s.blendStart = -1
+          gradCacheRef.current = null
         }
-        paintLayer(s.steadyRgb, tSec, W, H, maxDim, 0, 0, 0.9)
+        // Build (or rebuild on resize) gradient cache. Each gradient is created at origin
+        // (0,0) with the circle's fixed radius. Per-frame we translate the canvas context to
+        // (cx, cy) instead of baking position into the gradient — this lets us reuse the same
+        // CanvasGradient objects across every frame until colors or canvas size change.
+        if (!gradCacheRef.current || gradCacheRef.current.maxDim !== maxDim) {
+          gradCacheRef.current = {
+            maxDim,
+            entries: s.steadyRgb.map(([R, G, B], i) => {
+              const r    = circleParams[i].radius * maxDim
+              const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, r)
+              grad.addColorStop(0, `rgba(${R},${G},${B},0.9)`)
+              grad.addColorStop(1, `rgba(${R},${G},${B},0)`)
+              return { grad, r }
+            }),
+          }
+        }
+        const { entries } = gradCacheRef.current
+        for (let i = 0; i < NUM_CIRCLES; i++) {
+          const p            = circleParams[i]
+          const { grad, r }  = entries[i]
+          const cx = (p.baseX + p.xAmp * Math.sin(tSec * p.xFreq * Math.PI * 2 + p.xPhase)) * W
+          const cy = (p.baseY + p.yAmp * Math.sin(tSec * p.yFreq * Math.PI * 2 + p.yPhase)) * H
+          ctx.setTransform(1, 0, 0, 1, cx, cy)
+          ctx.fillStyle = grad
+          ctx.beginPath()
+          ctx.arc(0, 0, r, 0, Math.PI * 2)
+          ctx.fill()
+        }
+        ctx.setTransform(1, 0, 0, 1, 0, 0)
       }
     }
 
