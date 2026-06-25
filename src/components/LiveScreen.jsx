@@ -356,7 +356,7 @@ export default function LiveScreen({ currentTrack, isPaused, ending, onClose, sh
                    Never rotated — fly-up is always vertical regardless of spin angle. */}
               <motion.div
                 className="absolute inset-0"
-                style={{ zIndex: 2, willChange: 'transform' }}
+                style={{ zIndex: 2, willChange: 'transform, opacity' }}
                 initial={{ opacity: 0, y: -400, scale: 0.85 }}
                 animate={flyCtrl}
               >
