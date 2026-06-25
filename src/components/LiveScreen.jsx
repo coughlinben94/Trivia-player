@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useLayoutEffect, useRef } from 'react'
 import { motion, useAnimation } from 'framer-motion'
 import AlbumGradient from './AlbumGradient'
 import { usePalette } from '../hooks/usePalette'
@@ -55,6 +55,41 @@ export default function LiveScreen({ currentTrack, isPaused, ending, onClose, sh
   const [upcomingArtUrl, setUpcomingArtUrl] = useState(null)
   const [textInstant, setTextInstant]     = useState(false)
   const [closing, setClosing]             = useState(false)
+
+  const titleRef                          = useRef(null)
+  const titleBasePxRef                    = useRef(null)
+  const [titleScale, setTitleScale]       = useState(1)
+
+  // Shrink long titles to fit within two lines. Runs synchronously before paint so
+  // there is no visible flash of the full-size oversized text.
+  useLayoutEffect(() => {
+    const el = titleRef.current
+    if (!el) return
+
+    // Reset any previous override so Tailwind classes determine the base size.
+    el.style.fontSize = ''
+
+    const cs     = getComputedStyle(el)
+    const basePx = parseFloat(cs.fontSize)
+    // lineHeight can be 'normal' in some browsers; fall back to leading-tight ratio.
+    const lhPx   = parseFloat(cs.lineHeight) || basePx * 1.25
+    const maxH   = lhPx * 2 + 4  // two lines + 4px sub-pixel buffer
+
+    titleBasePxRef.current = basePx
+
+    if (el.scrollHeight <= maxH) {
+      setTitleScale(1)
+      return
+    }
+
+    let scale = 1 - 0.08
+    while (scale >= 0.55) {
+      el.style.fontSize = `${basePx * scale}px`
+      if (el.scrollHeight <= maxH) break
+      scale -= 0.08
+    }
+    setTitleScale(Math.max(0.55, scale))
+  }, [shown?.name])
 
   const paletteColors          = usePalette(artUrl)
   const upcomingPaletteColors  = usePalette(upcomingArtUrl)
@@ -369,7 +404,11 @@ export default function LiveScreen({ currentTrack, isPaused, ending, onClose, sh
               animate={{ opacity: transitioning ? 0 : (textVisible ? 1 : 0), y: transitioning ? -6 : 0 }}
               transition={textInstant ? { duration: 0 } : { duration: 0.25, ease: [0.23, 1, 0.32, 1] }}
             >
-              <h1 className="text-4xl sm:text-5xl font-bold text-white tracking-tight leading-tight mb-2">
+              <h1
+                ref={titleRef}
+                className="text-4xl sm:text-5xl font-bold text-white tracking-tight leading-tight mb-2"
+                style={titleScale < 1 ? { fontSize: `${(titleBasePxRef.current ?? 48) * titleScale}px` } : undefined}
+              >
                 {shown.name}
               </h1>
               <p className="text-xl text-white font-medium">
