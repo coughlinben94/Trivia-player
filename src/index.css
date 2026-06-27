@@ -4,10 +4,10 @@
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
 
-  --color-base:           #0a0a0a;
-  --color-surface:        #272729;
-  --color-surface-inset:  #212123;
-  --color-surface-raised: #303032;
+  --color-base:           #1e1a13;
+  --color-surface:        #2e2920;
+  --color-surface-inset:  #262118;
+  --color-surface-raised: #383228;
   --color-accent:         #E0A82E;
   --color-accent-hover:   #F0BC4A;
   --color-ink:            #ffffff;
