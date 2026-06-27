@@ -457,8 +457,14 @@ const [newSetName, setNewSetName] = useState('')
                 ))}
               </div>
             ) : searching ? null : !query ? (
-              <div className="flex items-center justify-center h-full text-ink-muted text-xs pb-16">
-                Type to search Spotify
+              <div className="flex flex-col items-center justify-center h-full gap-4 px-6 pb-16 select-none">
+                <svg width="44" height="44" viewBox="0 0 24 24" fill="none" className="text-accent/20">
+                  <path d="M11 19A8 8 0 1 0 11 3a8 8 0 0 0 0 16ZM21 21l-4.35-4.35" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                <div className="text-center">
+                  <p className="text-sm font-medium text-white">Add songs</p>
+                  <p className="text-xs text-ink-muted mt-1">Search Spotify to build your library</p>
+                </div>
               </div>
             ) : (
               <div className="flex items-center justify-center h-full text-ink-muted text-xs pb-16">
@@ -506,8 +512,10 @@ const [newSetName, setNewSetName] = useState('')
 
 function SetItem({ id, set, isActive, isRenaming, renamingVal, onSelect, onDelete, onClear, onStartRename, onRenameChange, onRenameCommit, onRenameCancel }) {
   return (
-    <div className={`group flex items-center rounded-lg px-2 py-1.5 transition-colors duration-150 ${
-      isActive ? 'bg-white/[0.08] text-white' : 'text-white hover:text-white hover:bg-white/[0.04]'
+    <div className={`group flex items-center rounded-lg transition-colors duration-150 ${
+      isActive
+        ? 'bg-surface-raised border-l-2 border-accent text-white pl-1.5 pr-2 py-1.5'
+        : 'text-ink-muted hover:text-white hover:bg-surface-raised/50 px-2 py-1.5'
     }`}>
       {isRenaming ? (
         <input
@@ -597,9 +605,10 @@ function LibraryCard({ track, isPlaying, isPaused, onRemove, onClick, onDragStar
   const hasTrim = track.startMs > 0 || (track.stopMs && track.stopMs < track.duration_ms - 1000)
   return (
     <div
-      className={`relative group rounded-xl overflow-hidden transition-shadow duration-200 cursor-pointer select-none ${
+      className={`relative group rounded-xl overflow-hidden cursor-pointer select-none transition-[transform,box-shadow] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:scale-[1.02] hover:shadow-xl ${
         isPlaying ? 'ring-1 ring-accent/40' : isPaused ? 'ring-1 ring-white/15' : ''
       }`}
+      style={{ willChange: 'transform' }}
       draggable
       onDragStart={onDragStart}
       onDragOver={onDragOver}
