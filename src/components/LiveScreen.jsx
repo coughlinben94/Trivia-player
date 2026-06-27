@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, useAnimation } from 'framer-motion'
 import AlbumGradient from './AlbumGradient'
 import { usePalette } from '../hooks/usePalette'
@@ -61,9 +61,10 @@ export default function LiveScreen({ currentTrack, isPaused, ending, onClose, sh
   const titleBasePxRef                    = useRef(null)
   const [titleScale, setTitleScale]       = useState(1)
 
-  // Shrink long titles to fit within two lines. Runs synchronously before paint so
-  // there is no visible flash of the full-size oversized text.
-  useLayoutEffect(() => {
+  // Shrink long titles to fit within two lines. Title is opacity-0 during the
+  // entire entrance, so post-paint measurement (useEffect) is invisible to the user
+  // and avoids blocking the record-drop spring with synchronous layout reflows.
+  useEffect(() => {
     const el = titleRef.current
     if (!el) return
 
