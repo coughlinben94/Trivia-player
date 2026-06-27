@@ -5,6 +5,10 @@ import { fmt, TimeField, SetMarkerButton } from './ScrubberControls'
 
 function uid() { return Math.random().toString(36).slice(2) }
 
+function totalSongs(sets) {
+  return Object.values(sets?.items ?? {}).reduce((n, s) => n + (s.songs?.length ?? 0), 0)
+}
+
 export default function QuickAdd() {
   const sessionIdRef  = useRef(uid())
   const searchRef     = useRef(null)
@@ -120,6 +124,11 @@ export default function QuickAdd() {
           },
         },
       }
+
+      // Guard 3 — QuickAdd only ever appends; it must never write empty or default sets.
+      // This should be structurally impossible (we always add song above), but abort
+      // explicitly rather than risk clobbering the row if logic changes in future.
+      if (totalSongs(updatedSets) === 0) throw new Error('Write aborted: would produce empty library')
 
       // sessionIdRef is unique to this phone session — NOT the laptop's sessionId.
       // The laptop's realtime handler will see last_writer !== laptopSessionId and apply it live.

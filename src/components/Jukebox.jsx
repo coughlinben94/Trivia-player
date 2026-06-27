@@ -44,6 +44,10 @@ function loadSets() {
   }
 }
 
+function totalSongs(sets) {
+  return Object.values(sets?.items ?? {}).reduce((n, s) => n + (s.songs?.length ?? 0), 0)
+}
+
 export default function Jukebox({ onLogout }) {
   const [sets, setSets] = useState(loadSets)
   const [query, setQuery] = useState('')
@@ -81,23 +85,43 @@ const [newSetName, setNewSetName] = useState('')
 
   // Stable session ID — embedded in every Supabase write so the realtime handler can
   // detect its own echoes without touching the sets payload shape.
-  const sessionIdRef            = useRef(uid())
-  const supabaseDebounceRef     = useRef(null)
+  const sessionIdRef              = useRef(uid())
+  const supabaseDebounceRef       = useRef(null)
   // Set true before setSets(sbSets) on initial Supabase load so the write effect
   // doesn't immediately write the data back to Supabase (one wasted round-trip).
   const justLoadedFromSupabaseRef = useRef(false)
+  // Set true once syncFromSupabase() completes (success OR network failure).
+  // No Supabase write is allowed before this — prevents the first-render empty-default
+  // race where the 500ms debounce fires before we know what the remote row contains.
+  const syncCompletedRef          = useRef(false)
 
-  // Persist to localStorage immediately; debounce Supabase write 500ms so rapid
-  // successive edits don't spam the network.
+  // Persist to localStorage immediately; debounce Supabase write 500ms.
   useEffect(() => {
     localStorage.setItem('trivia_sets', JSON.stringify(sets))
     if (justLoadedFromSupabaseRef.current) {
       justLoadedFromSupabaseRef.current = false
+      // Also cancel any timer that was started from the pre-load empty-state render
+      // so it cannot fire and overwrite what we just loaded from Supabase.
+      clearTimeout(supabaseDebounceRef.current)
+      supabaseDebounceRef.current = null
       return
     }
     clearTimeout(supabaseDebounceRef.current)
     supabaseDebounceRef.current = setTimeout(async () => {
       supabaseDebounceRef.current = null
+      // Guard 1a — never write before the initial sync has confirmed the remote state.
+      // This is the primary protection against the first-render empty-default race.
+      if (!syncCompletedRef.current) return
+      // Guard 1b — if we're about to write an empty state, verify the remote is also
+      // empty. Catches any edge-case that bypasses Guard 1a (e.g. sync completes but
+      // local state is still empty before the user adds anything).
+      if (totalSongs(sets) === 0) {
+        try {
+          const { data } = await supabase
+            .from('jukebox_state').select('sets').eq('id', 'singleton').single()
+          if (data?.sets && totalSongs(data.sets) > 0) return  // remote has data — abort
+        } catch { return }  // cannot verify remote state — do not risk it
+      }
       try {
         await supabase.from('jukebox_state').upsert({
           id: 'singleton',
@@ -105,13 +129,13 @@ const [newSetName, setNewSetName] = useState('')
           last_writer: sessionIdRef.current,
           updated_at: new Date().toISOString(),
         })
-      } catch { /* silent — localStorage is the fallback */ }
+      } catch { /* silent — localStorage is always the local fallback */ }
     }, 500)
   }, [sets])
 
   // On mount: fetch the authoritative sets from Supabase.
-  // Migration guard: only push localStorage→Supabase when Supabase is empty AND
-  // localStorage has songs — never let an empty local state clobber a populated row.
+  // One-way migration: push localStorage→Supabase ONLY when remote is empty AND
+  // local has songs. Never the reverse. Never empty-over-populated in either direction.
   useEffect(() => {
     async function syncFromSupabase() {
       try {
@@ -122,14 +146,10 @@ const [newSetName, setNewSetName] = useState('')
           .single()
         if (error || !data?.sets) return
         const sbSets = data.sets
-        const totalSbSongs = Object.values(sbSets.items ?? {})
-          .reduce((sum, s) => sum + (s.songs?.length ?? 0), 0)
-        if (totalSbSongs === 0) {
-          // Supabase is empty — migrate localStorage up if it has songs
+        if (totalSongs(sbSets) === 0) {
+          // Remote is empty — migrate localStorage up if it has songs
           const lsSets = loadSets()
-          const totalLsSongs = Object.values(lsSets.items ?? {})
-            .reduce((sum, s) => sum + (s.songs?.length ?? 0), 0)
-          if (totalLsSongs > 0) {
+          if (totalSongs(lsSets) > 0) {
             try {
               await supabase.from('jukebox_state').upsert({
                 id: 'singleton',
@@ -140,20 +160,26 @@ const [newSetName, setNewSetName] = useState('')
             } catch { /* migration failed silently — localStorage remains the truth */ }
           }
         } else {
-          // Supabase has data — use it as the source of truth
+          // Remote has songs — use it as the source of truth
           justLoadedFromSupabaseRef.current = true
           setSets(sbSets)
           localStorage.setItem('trivia_sets', JSON.stringify(sbSets))
         }
       } catch { /* Supabase unreachable — already rendering from localStorage */ }
+      finally {
+        // Always mark sync done so the write effect knows it's safe to write.
+        // This fires whether Supabase was reachable or not.
+        syncCompletedRef.current = true
+      }
     }
     syncFromSupabase()
     return () => clearTimeout(supabaseDebounceRef.current)
   }, [])
 
   // Realtime: apply remote changes from other devices.
-  // Guard 1 — own echo: skip if last_writer matches this session.
-  // Guard 2 — in-flight local edit: skip if a local write is pending (debounce active).
+  // Guard: own-echo (last_writer match), in-flight edit (debounce pending),
+  // and empty-clobber (incoming has 0 songs but local has songs).
+  // setsRef provides a stable reference to current sets without stale closure issues.
   useEffect(() => {
     const channel = supabase
       .channel('jukebox_state_changes')
@@ -161,10 +187,12 @@ const [newSetName, setNewSetName] = useState('')
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'jukebox_state', filter: 'id=eq.singleton' },
         (payload) => {
-          if (payload.new?.last_writer === sessionIdRef.current) return
-          if (supabaseDebounceRef.current !== null) return
+          if (payload.new?.last_writer === sessionIdRef.current) return  // own echo
+          if (supabaseDebounceRef.current !== null) return               // local edit in-flight
           const incoming = payload.new?.sets
           if (!incoming) return
+          // Guard 2 — never let an empty/default incoming state wipe a populated local library
+          if (totalSongs(incoming) === 0 && totalSongs(setsRef.current) > 0) return
           setSets(incoming)
           localStorage.setItem('trivia_sets', JSON.stringify(incoming))
         }
@@ -187,6 +215,10 @@ const [newSetName, setNewSetName] = useState('')
   // Always-live library ref so advanceToNext never closes over a stale snapshot
   const libraryRef = useRef(library)
   useEffect(() => { libraryRef.current = library }, [library])
+  // Always-live sets ref so the realtime handler (registered once, empty deps) can
+  // compare incoming totalSongs against current local state without a stale closure.
+  const setsRef = useRef(sets)
+  useEffect(() => { setsRef.current = sets }, [sets])
 
   const advanceToNext = useCallback(() => {
     const lib = libraryRef.current
