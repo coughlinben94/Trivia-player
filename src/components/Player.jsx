@@ -17,7 +17,7 @@ export default function Player({ player, isPlaying, onPlay, onStop, onSkip, libr
       {/* Scrubber */}
       <div className="px-5 pt-3 pb-1">
         <div className="flex items-center gap-2.5">
-          <span className="text-[10px] text-white tabular-nums w-7 text-right">{fmt(position)}</span>
+          <span className="text-[10px] text-ink-muted tabular-nums w-7 text-right">{fmt(position)}</span>
           <input
             type="range"
             className="player-scrubber flex-1"
@@ -27,7 +27,7 @@ export default function Player({ player, isPlaying, onPlay, onStop, onSkip, libr
             style={{ '--progress': `${progress}%` }}
             onChange={e => seek(Number(e.target.value))}
           />
-          <span className="text-[10px] text-white tabular-nums w-7">{fmt(duration)}</span>
+          <span className="text-[10px] text-ink-muted tabular-nums w-7">{fmt(duration)}</span>
         </div>
       </div>
 

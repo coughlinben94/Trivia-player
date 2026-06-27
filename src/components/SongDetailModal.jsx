@@ -31,7 +31,7 @@ function TimeField({ label, value, maxMs, onChange }) {
 
   return (
     <div className="flex flex-col items-center gap-1">
-      <span className="text-[9px] font-bold uppercase tracking-widest text-white">{label}</span>
+      <span className="text-[11px] text-ink-muted">{label}</span>
       {editing ? (
         <input
           ref={ref}
@@ -266,8 +266,8 @@ export default function SongDetailModal({ track, player, onUpdateTimes, onClose,
             />
           </div>
           <div className="flex justify-between mb-4">
-            <span className="text-[10px] text-white tabular-nums">{fmt(displayPosition)}</span>
-            <span className="text-[10px] text-white tabular-nums">{fmt(displayDuration)}</span>
+            <span className="text-[10px] text-ink-muted tabular-nums">{fmt(displayPosition)}</span>
+            <span className="text-[10px] text-ink-muted tabular-nums">{fmt(displayDuration)}</span>
           </div>
 
           {/* Set In / Play / Set Out */}
@@ -341,7 +341,7 @@ export default function SongDetailModal({ track, player, onUpdateTimes, onClose,
                       className="w-full text-left px-4 py-2.5 text-xs font-medium text-white hover:bg-white/[0.06] transition-colors duration-150 cursor-pointer border-b border-white/[0.04] last:border-0"
                     >
                       {set.name}
-                      <span className="ml-2 text-[9px] text-white/40">{set.songs?.length ?? 0} songs</span>
+                      <span className="ml-2 text-[11px] text-ink-muted">{set.songs?.length ?? 0} songs</span>
                     </button>
                   ))}
                 </div>

@@ -329,8 +329,6 @@ const [newSetName, setNewSetName] = useState('')
 
         {/* Left sidebar — trivia themes */}
         <aside className="w-44 flex-shrink-0 border-r border-white/[0.05] bg-surface-inset flex flex-col py-4 overflow-y-auto">
-          <p className="text-[9px] font-bold uppercase tracking-widest text-white px-4 mb-2">Trivia Themes</p>
-
           {/* Add new theme — at top */}
           <div className="px-2 mb-3">
             {addingSet ? (
@@ -413,7 +411,7 @@ const [newSetName, setNewSetName] = useState('')
                 <p className="text-white text-sm">
                   {sets.activeId === 'main' ? 'Your library is empty' : `${activeSetName} is empty`}
                 </p>
-                <p className="text-white text-xs mt-1">Search on the right to add songs</p>
+                <p className="text-ink-muted text-xs mt-1">Search on the right to add songs</p>
               </div>
             )}
           </div>
@@ -459,11 +457,11 @@ const [newSetName, setNewSetName] = useState('')
                 ))}
               </div>
             ) : searching ? null : !query ? (
-              <div className="flex items-center justify-center h-full text-white text-xs pb-16">
+              <div className="flex items-center justify-center h-full text-ink-muted text-xs pb-16">
                 Type to search Spotify
               </div>
             ) : (
-              <div className="flex items-center justify-center h-full text-white text-xs pb-16">
+              <div className="flex items-center justify-center h-full text-ink-muted text-xs pb-16">
                 No results found
               </div>
             )}
@@ -532,7 +530,7 @@ function SetItem({ id, set, isActive, isRenaming, renamingVal, onSelect, onDelet
         >
           {set.name}
           {set.songs?.length > 0 && (
-            <span className="ml-1.5 text-[9px] text-white">{set.songs.length}</span>
+            <span className="ml-1.5 text-[11px] text-ink-muted">{set.songs.length}</span>
           )}
         </button>
       )}
@@ -576,7 +574,7 @@ function TrackRow({ track, index, inLibrary, onAdd }) {
       }
       <div className="flex-1 min-w-0">
         <p className="text-xs font-medium text-white truncate">{track.name}</p>
-        <p className="text-[10px] text-white truncate mt-0.5">{artists}</p>
+        <p className="text-[10px] text-ink-muted truncate mt-0.5">{artists}</p>
       </div>
       <button
         onClick={() => onAdd(track)}
@@ -638,7 +636,7 @@ function LibraryCard({ track, isPlaying, isPaused, onRemove, onClick, onDragStar
       </div>
       <div className="p-2 bg-white/[0.03] text-center">
         <p className={`text-[11px] font-semibold truncate ${isPlaying ? 'text-accent' : 'text-white'}`}>{track.name}</p>
-        <p className="text-[10px] text-white truncate mt-0.5">{artists}</p>
+        <p className="text-[10px] text-ink-muted truncate mt-0.5">{artists}</p>
       </div>
     </div>
   )
