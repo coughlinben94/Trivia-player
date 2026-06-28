@@ -10,7 +10,6 @@ function totalSongs(sets) {
 
 export default function QuickAdd() {
   const sessionIdRef = useRef(uid())
-  const searchRef    = useRef(null)
 
   const [sets, setSets]           = useState(null)
   const [setsError, setSetsError] = useState(false)
@@ -43,11 +42,6 @@ export default function QuickAdd() {
       })
       .catch(() => setSetsError(true))
   }, [])
-
-  // Auto-focus search input when on search step
-  useEffect(() => {
-    if (step === 'search') searchRef.current?.focus()
-  }, [step])
 
   // Debounced search
   useEffect(() => {
@@ -179,13 +173,12 @@ export default function QuickAdd() {
         <div className="px-5">
           <div className="relative mb-5">
             <input
-              ref={searchRef}
               type="search"
               value={query}
               onChange={e => setQuery(e.target.value)}
               placeholder="Search Spotify…"
               autoComplete="off"
-              className="w-full bg-surface border border-white/[0.08] rounded-2xl px-4 py-4 text-white placeholder:text-ink-muted text-sm outline-none focus:border-accent/40 transition-colors duration-150"
+              className="w-full bg-surface border border-white/[0.08] rounded-2xl px-4 py-4 text-white placeholder:text-ink-muted text-base outline-none focus:border-accent/40 transition-colors duration-150"
             />
             {searching && (
               <div className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 border-[1.5px] border-white/10 border-t-accent rounded-full animate-spin" />
