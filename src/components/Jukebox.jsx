@@ -65,6 +65,7 @@ const [newSetName, setNewSetName] = useState('')
   const [renamingVal, setRenamingVal] = useState('')
   const [shuffleKey, setShuffleKey] = useState(0)
   const [toasts, setToasts] = useState([])
+  const [syncDone, setSyncDone] = useState(false)
 
   const addToast = useCallback((msg) => {
     const id = uid()
@@ -94,6 +95,7 @@ const [newSetName, setNewSetName] = useState('')
   // No Supabase write is allowed before this — prevents the first-render empty-default
   // race where the 500ms debounce fires before we know what the remote row contains.
   const syncCompletedRef          = useRef(false)
+  const libParamHandledRef        = useRef(false)
 
   // Persist to localStorage immediately; debounce Supabase write 500ms.
   useEffect(() => {
@@ -170,6 +172,7 @@ const [newSetName, setNewSetName] = useState('')
         // Always mark sync done so the write effect knows it's safe to write.
         // This fires whether Supabase was reachable or not.
         syncCompletedRef.current = true
+        setSyncDone(true)  // triggers the ?lib= param handler effect
       }
     }
     syncFromSupabase()
@@ -219,6 +222,70 @@ const [newSetName, setNewSetName] = useState('')
   // compare incoming totalSongs against current local state without a stale closure.
   const setsRef = useRef(sets)
   useEffect(() => { setsRef.current = sets }, [sets])
+
+  // ?lib= URL param handler — Trivia OS between-rounds handoff.
+  // Runs once, after the initial Supabase sync completes (syncDone flips true).
+  useEffect(() => {
+    if (!syncDone) return
+    if (libParamHandledRef.current) return
+    libParamHandledRef.current = true
+
+    let lib = new URLSearchParams(window.location.search).get('lib')
+
+    const strip = () => {
+      const u = new URL(window.location)
+      u.searchParams.delete('lib')
+      window.history.replaceState({}, '', u.pathname + (u.search || ''))
+    }
+
+    if (!lib) { strip(); return }
+
+    // Random branch — resolve before the existence check so it flows the same path.
+    if (lib.toLowerCase() === 'random') {
+      const keys = Object.keys(setsRef.current?.items ?? {})
+      if (!keys.length) { strip(); return }
+      lib = keys[Math.floor(Math.random() * keys.length)]
+    }
+
+    // Contract: lib must be an existing key in items.
+    if (!setsRef.current?.items?.[lib]) {
+      console.warn('[Jukebox] ?lib= key not found:', lib)
+      strip()
+      return
+    }
+
+    const targetSongs = setsRef.current.items[lib].songs
+    if (!targetSongs.length) { strip(); return }
+
+    // Select the library in state (updates the UI picker).
+    setSets(prev => ({ ...prev, activeId: lib }))
+
+    // Inline shuffle against targetSongs — bypasses startShuffle's stale `library`
+    // closure. startShuffle closes over the derived `library` value; calling setSets
+    // first and startShuffle immediately after would shuffle the OLD active set.
+    // Capturing targetSongs from setsRef before any state update sidesteps that race.
+    clearTimeout(shuffleDebounceRef.current)
+    const order = shuffleArray(targetSongs.map((_, i) => i))
+    shuffleOrderRef.current = order
+    shuffleIdxRef.current = 0
+    const song = targetSongs[order[0]]
+    setShuffleKey(k => k + 1)
+    setPlayingId(song.id)
+    setIsPlaying(true)
+    pendingLiveOpenRef.current = true
+    pendingUriRef.current = song.uri
+    playTrackFn.current?.(song)?.then(started => {
+      if (!started) {
+        pendingLiveOpenRef.current = false
+        pendingUriRef.current = null
+        setIsPlaying(false)
+        setShowLive(false)
+        setPlayingId(null)
+      }
+    })
+
+    strip()
+  }, [syncDone])  // eslint-disable-line react-hooks/exhaustive-deps
 
   const advanceToNext = useCallback(() => {
     const lib = libraryRef.current
